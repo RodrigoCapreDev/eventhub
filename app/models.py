@@ -267,6 +267,9 @@ class Ticket(models.Model):
         if quantity is None or not isinstance(quantity, int) or quantity <= 0:
             errors["quantity"] = "La cantidad de tickets debe ser un número entero mayor a 0"
 
+        if event.status in [EventStatus.SOLD_OUT, EventStatus.FINISHED, EventStatus.CANCELLED]:
+            errors["status"] = "No se pueden comprar entradas para este evento"
+
         return errors
 
     @classmethod
