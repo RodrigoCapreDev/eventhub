@@ -89,6 +89,7 @@ class Event(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     scheduled_at = models.DateTimeField()
+    previous_date = models.DateTimeField()
     organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organized_events")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -133,6 +134,7 @@ class Event(models.Model):
             scheduled_at=scheduled_at,
             organizer=organizer,
             available_tickets=venue.capacity if venue else 0,
+            status=EventStatus.ACTIVE
         )
 
         return True, None
@@ -147,10 +149,26 @@ class Event(models.Model):
         self.venue=venue
         self.available_tickets = venue.capacity if venue else self.available_tickets
         self.description = description.strip()
-        self.scheduled_at = scheduled_at
+        if scheduled_at is None:
+            self.previous_date = self.scheduled_at
+            self.scheduled_at = scheduled_at
         self.organizer = organizer
+        self.update_status()
         self.save()
         return True ,None
+    
+    def update_status(self):
+        if self.status == EventStatus.CANCELLED:
+            return 
+        if self.scheduled_at <= timezone.now():
+            self.status = EventStatus.FINISHED
+        elif self.available_tickets == 0:
+            self.status = EventStatus.SOLD_OUT
+        elif self.previous_date and self.previous_date != self.scheduled_at:
+            self.status = EventStatus.RESCHEDULED
+        else:
+            self.status = EventStatus.ACTIVE
+        self.save()
     
 class Venue(models.Model):
     name = models.CharField(max_length=200)
