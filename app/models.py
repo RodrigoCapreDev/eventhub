@@ -77,6 +77,12 @@ class Category(models.Model):
         self.is_active = is_active
         self.save()
 
+class EventStatus(models.TextChoices):
+    ACTIVE='active', 'Activo'
+    SOLD_OUT='sold_out', 'Agotado'
+    RESCHEDULED='rescheduled', 'Reprogramado'
+    FINISHED='finished', 'Finalizado'
+    CANCELLED='cancelled', 'Cancelado'
 
 class Event(models.Model):
 
@@ -89,7 +95,7 @@ class Event(models.Model):
     venue= models.ForeignKey('Venue', on_delete=models.SET_NULL, related_name='events', null=True, blank=True)
     categories = models.ManyToManyField(Category, blank=True)
     available_tickets = models.IntegerField(default=0)
-
+    status = models.CharField(max_length=15, choices=EventStatus.choices, default=EventStatus.ACTIVE)   
 
     def __str__(self):
         return self.title
@@ -145,7 +151,7 @@ class Event(models.Model):
         self.organizer = organizer
         self.save()
         return True ,None
-
+    
 class Venue(models.Model):
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=200)
