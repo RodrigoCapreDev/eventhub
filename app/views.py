@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render, redirect
 from django.http import HttpResponseBadRequest
 from django.utils import timezone
 
-from .models import Category, Comment,Event, Rating, User, Venue, Notification, NotificationPriority, UserNotification, Ticket, TicketType
+from .models import Category, Comment, Event, Rating, User, Venue, Notification, NotificationPriority, UserNotification, Ticket, TicketType, EventStatus
 
 
 def register(request):
@@ -128,6 +128,14 @@ def event_delete(request, id):
 
     return redirect("events")
 
+@login_required
+def event_cancel(request, id):
+    if not request.user.is_organizer:
+        return redirect("events")
+    event=get_object_or_404(Event, pk=id)
+    event.status = EventStatus.CANCELLED
+    event.save()
+    return redirect("event_detail", id)
 
 @login_required
 def event_form(request, id=None):
