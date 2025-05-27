@@ -334,3 +334,49 @@ class EventCRUDTest(EventBaseTest):
 
         # Verificar que el evento eliminado ya no aparece en la tabla
         expect(self.page.get_by_text("Evento de prueba 1")).to_have_count(0)
+
+
+class EventHidePastEventsTest(EventBaseTest):
+    """Test para verificar que los eventos pasados están ocultos por defecto en el dashboard"""
+
+    def setUp(self):
+        super().setUp()
+        # Crear evento pasado
+        past_date = timezone.now() - datetime.timedelta(days=5)
+        self.past_event = Event.objects.create(
+            title="Evento Pasado",
+            description="Este evento ya pasó",
+            scheduled_at=past_date,
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        self.past_event.categories.add(self.category)
+    
+    def test_past_events_are_hidden_by_default(self):
+        # Iniciar sesión como organizador (es lo mismo ya que para el dashboard no hay diferencia)
+        self.login_user("organizador", "password123")
+
+        # Ir a la página de eventos (dashboard)
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Verificar que los eventos futuros se muestran
+        expect(self.page.get_by_text("Evento de prueba 1")).to_be_visible()
+        expect(self.page.get_by_text("Evento de prueba 2")).to_be_visible()
+
+        # Verificar que el evento pasado NO se muestra
+        expect(self.page.get_by_text("Evento Pasado")).to_have_count(0)
+
+    def test_show_past_events_when_checked(self):
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Marcar checkbox "Incluir eventos pasados"
+        self.page.check("input#show_past")
+        # Hacer submit para filtrar
+        self.page.get_by_role("button", name="Filtrar").click()
+
+        # Ahora el evento pasado debe ser visible
+        expect(self.page.get_by_text("Evento Pasado")).to_be_visible()
+        # El evento futuro también debe seguir visible
+        expect(self.page.get_by_text("Evento de prueba 1")).to_be_visible()
+        expect(self.page.get_by_text("Evento de prueba 2")).to_be_visible()
