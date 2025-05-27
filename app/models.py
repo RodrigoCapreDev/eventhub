@@ -167,8 +167,15 @@ class Event(models.Model):
             self.status = EventStatus.SOLD_OUT
         if self.scheduled_at <= timezone.now():
             self.status = EventStatus.FINISHED
+        if self.status == previous_status:
+            if self.previous_date and self.previous_date != self.scheduled_at:
+                self.status = EventStatus.RESCHEDULED
+            else:
+                self.status = EventStatus.ACTIVE
         if self.status != previous_status:
             self.save()
+
+        
     
     def get_status_css_class(self):
         return {
@@ -309,6 +316,8 @@ class Ticket(models.Model):
         self.event.available_tickets -= quantity - self.quantity
         if self.event.available_tickets < 0:
             return False, {"error": "No hay suficientes entradas disponibles"}
+        if self.event.available_tickets == 0:
+            self.event.status = EventStatus.SOLD_OUT
         self.event.save()
         if quantity is None or not isinstance(quantity, int) or quantity <= 0:
             return False, {"quantity": "La cantidad de tickets debe ser mayor a 0"}
@@ -328,12 +337,13 @@ class Ticket(models.Model):
     def delete(self, user_is_organizer):
         if user_is_organizer:
             self.event.available_tickets += self.quantity
+            self.event.update_status()
             self.event.save()
             super().delete()
             return True, None
         if not user_is_organizer and now() < self.buy_date + timedelta(minutes=30):
             self.event.available_tickets += self.quantity
-            self.event.save()
+            self.event.update_status()
             super().delete()
             return True, None
         else:
