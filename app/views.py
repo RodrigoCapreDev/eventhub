@@ -77,6 +77,11 @@ def events(request):
     if date:
         events = events.filter(scheduled_at__date=date)
 
+    now = timezone.now()
+    for event in events:
+        if event.scheduled_at < now:
+            event.update_status()              
+
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
 

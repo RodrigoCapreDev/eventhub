@@ -149,26 +149,35 @@ class Event(models.Model):
         self.venue=venue
         self.available_tickets = venue.capacity if venue else self.available_tickets
         self.description = description.strip()
-        if scheduled_at is None:
+        if scheduled_at and scheduled_at != self.scheduled_at:
             self.previous_date = self.scheduled_at
             self.scheduled_at = scheduled_at
         self.organizer = organizer
-        self.update_status()
         self.save()
+        self.update_status()
         return True ,None
     
     def update_status(self):
+        previous_status = self.status
         if self.status == EventStatus.CANCELLED:
             return 
+        if self.previous_date and self.previous_date != self.scheduled_at:
+            self.status = EventStatus.RESCHEDULED
+        if self.available_tickets == 0:
+            self.status = EventStatus.SOLD_OUT
         if self.scheduled_at <= timezone.now():
             self.status = EventStatus.FINISHED
-        elif self.available_tickets == 0:
-            self.status = EventStatus.SOLD_OUT
-        elif self.previous_date and self.previous_date != self.scheduled_at:
-            self.status = EventStatus.RESCHEDULED
-        else:
-            self.status = EventStatus.ACTIVE
-        self.save()
+        if self.status != previous_status:
+            self.save()
+    
+    def get_status_css_class(self):
+        return {
+            str(EventStatus.ACTIVE): "badge bg-success",
+            str(EventStatus.CANCELLED): "badge bg-danger",
+            str(EventStatus.RESCHEDULED): "badge bg-warning",
+            str(EventStatus.SOLD_OUT): "badge bg-secondary",
+            str(EventStatus.FINISHED): "badge bg-dark",
+        }.get(self.status, "")
     
 class Venue(models.Model):
     name = models.CharField(max_length=200)
@@ -280,6 +289,8 @@ class Ticket(models.Model):
         if event.available_tickets < quantity:
             return False, {"error": "No hay suficientes entradas disponibles"}
         event.available_tickets -= quantity
+        if event.available_tickets == 0:
+            event.status = EventStatus.SOLD_OUT
         event.save()
 
         ticket = Ticket.objects.create(
