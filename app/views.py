@@ -1,12 +1,12 @@
-import datetime
-
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render, redirect
 from django.http import HttpResponseBadRequest
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .models import Category, Comment,Event, Rating, User, Venue, Notification, NotificationPriority, UserNotification, Ticket, TicketType
+
+import datetime
 
 
 def register(request):
@@ -153,6 +153,19 @@ def event_form(request, id=None):
         time = request.POST.get("time")
         selected_categories = request.POST.getlist("categories")
 
+        if not venue_id:
+            errors["venue"] = "Debe seleccionar una ubicación"
+            return render(
+                request,
+                "app/event_form.html",
+                {
+                    "event": event,
+                    "categories": categories,
+                    "venues": venues,
+                    "user_is_organizer": request.user.is_organizer,
+                    "errors": errors
+                },
+            )
         venue = get_object_or_404(Venue, pk=venue_id)
         [year, month, day] = date.split("-")
         [hour, minutes] = time.split(":")
@@ -176,7 +189,7 @@ def event_form(request, id=None):
                 }
         else:
             event = get_object_or_404(Event, pk=id)
-            success, errors = event.update(title,venue, description, scheduled_at, request.user)
+            success, errors = event.update(title, description, scheduled_at, venue, request.user)
             if success:
                 event.categories.set(selected_categories)
                 return redirect("events")
