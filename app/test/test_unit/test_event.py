@@ -150,7 +150,7 @@ class EventModelTest(TestCase):
             description=new_description,
             scheduled_at=None,  # No cambiar
             organizer=None,  # No cambiar
-            venue=None,
+            venue=None,  # No cambiar
         )
 
         # Recargar el evento desde la base de datos
@@ -161,4 +161,34 @@ class EventModelTest(TestCase):
         self.assertEqual(updated_event.description, new_description)
         self.assertEqual(updated_event.scheduled_at, original_scheduled_at)
         self.assertEqual(updated_event.venue, original_venue)
+
+    def test_event_filter_futuros(self):
+        """Test que verifica que el filtrado de eventos futuros funciona correctamente"""
+        pasado = timezone.now() - datetime.timedelta(days=1)
+        futuro = timezone.now() + datetime.timedelta(days=1)
+
+        # Crear evento pasado
+        Event.objects.create(
+            title="Evento pasado",
+            description="Evento que ya pasó",
+            scheduled_at=pasado,
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        # Crear evento futuro
+        Event.objects.create(
+            title="Evento futuro",
+            description="Evento que será en el futuro",
+            scheduled_at=futuro,
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+
+        eventos_futuros = Event.objects.filter(scheduled_at__gte=timezone.now())
+
+        # Verifico que solo esté el evento futuro
+        self.assertTrue(all(e.scheduled_at >= timezone.now() for e in eventos_futuros))
+        self.assertTrue(any(e.title == "Evento futuro" for e in eventos_futuros))
+        self.assertFalse(any(e.title == "Evento pasado" for e in eventos_futuros))
+
 

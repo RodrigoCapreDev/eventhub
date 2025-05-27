@@ -2,7 +2,7 @@ import datetime
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponseBadRequest
 from django.utils import timezone
 
@@ -184,7 +184,7 @@ def event_form(request, id=None):
                 }
         else:
             event = get_object_or_404(Event, pk=id)
-            success, errors = event.update(title,venue, description, scheduled_at, request.user)
+            success, errors = event.update(title, venue, description, scheduled_at, request.user)
             if success:
                 event.categories.set(selected_categories)
                 return redirect("events")

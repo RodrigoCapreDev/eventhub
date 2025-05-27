@@ -131,20 +131,26 @@ class Event(models.Model):
 
         return True, None
 
-    def update(self, title,venue, description, scheduled_at, organizer):
-        errors = self.validate(title, description, scheduled_at, current_event_id=self.pk)
+    def update(self, title=None, venue=None, description=None, scheduled_at=None, organizer=None):
+        title = title if title is not None else self.title
+        description = description if description is not None else self.description
+        scheduled_at = scheduled_at if scheduled_at is not None else self.scheduled_at
+        organizer = organizer if organizer is not None else self.organizer
+        venue = venue if venue is not None else self.venue
 
+        errors = self.validate(title, description, scheduled_at, current_event_id=self.pk)
         if errors:
             return False, errors
 
         self.title = title.strip()
-        self.venue=venue
+        self.venue = venue
         self.available_tickets = venue.capacity if venue else self.available_tickets
         self.description = description.strip()
         self.scheduled_at = scheduled_at
         self.organizer = organizer
         self.save()
-        return True ,None
+        return True, None
+
 
 class Venue(models.Model):
     name = models.CharField(max_length=200)
