@@ -192,6 +192,7 @@ class EventModelTest(TestCase):
         self.assertFalse(any(e.title == "Evento pasado" for e in eventos_futuros))
 
     def test_event_status_activo_por_defecto(self):
+        """Test que verifica que los eventos nuevos son activos por defecto"""
         event = Event.objects.create(
             title="Evento activo",
             description="El nuevo evento debería ser activo por defecto",
@@ -202,6 +203,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.ACTIVE)
     
     def test_event_status_agotado(self):
+        """Test que verifica que un evento se marca como agotado cuando no hay entradas disponibles"""
         event = Event.objects.create(
             title="Evento agotado",
             description="Evento sin entradas disponibles",
@@ -214,6 +216,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.SOLD_OUT)
 
     def test_event_status_finalizado(self):
+        """Test que verifica que un evento se marca como finalizado cuando la fecha programada ya ha pasado"""
         event = Event.objects.create(
             title="Evento finalizado",
             description="Evento que ya ha finalizado",
@@ -225,6 +228,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.FINISHED)
 
     def test_event_status_reprogramado(self):
+        """Test que verifica que un evento se marca como reprogramado cuando la fecha programada cambia"""
         event = Event.objects.create(
             title="Evento reprogramado",
             description="Evento que ha sido reprogramado",
@@ -237,6 +241,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.RESCHEDULED)
     
     def test_event_status_priority_cancelled(self):
+        """Test que verifica que un evento cancelado tiene prioridad sobre otros estados"""
         event = Event.objects.create(
             title="Evento cancelado",
             description="Evento que ha sido cancelado",
@@ -251,6 +256,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.CANCELLED)
 
     def test_event_status_priority_soldout_over_rescheduled(self):
+        """Test que verifica que un evento agotado tiene prioridad sobre reprogramado"""
         event = Event.objects.create(
             title="Evento agotado y reprogramado",
             description="Evento que ha sido reprogramado y agotado",
@@ -264,6 +270,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.SOLD_OUT)
     
     def test_event_status_priority_finished_over_soldout(self):
+        """Test que verifica que un evento finalizado tiene prioridad sobre agotado"""
         event = Event.objects.create(
             title="Evento agotado y finalizado",
             description="Evento que ha sido finalizado y agotado",
@@ -276,6 +283,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.FINISHED)
     
     def test_event_status_remember_redschedule_after_soldout(self):
+        """Test que verifica que un evento reprogramado recuerda su estado después de ser agotado"""
         event = Event.objects.create(
             title="Evento reprogramado con mas entradas",
             description="Evento que ha sido reprogramado, se ha agotado y se le han añadido más entradas",
@@ -289,6 +297,7 @@ class EventModelTest(TestCase):
         self.assertEqual(event.status, EventStatus.RESCHEDULED)
 
     def test_event_status_remember_active_after_soldout(self):
+        """Test que verifica que un evento activo recuerda su estado después de ser agotado"""
         event = Event.objects.create(
             title="Evento activo después de agotado",
             description="Evento que ha sido agotado y se le han añadido más entradas",
