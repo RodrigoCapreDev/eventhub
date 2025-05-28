@@ -168,7 +168,7 @@ class Event(models.Model):
                 message=(
                     f"El evento '{self.title}' ha sido actualizado.\n"
                     + (f"📅 Nueva fecha: {self.scheduled_at}\n" if scheduled_at_change else "")
-                    + (f"📍 Nueva lugar: {self.venue.name}\n" if venue_change and self.venue else "")
+                    + (f"📍 Nuevo lugar: {self.venue.name}\n" if venue_change and self.venue else "")
                 ),
                 event=self,
                 priority=NotificationPriority.objects.get(description='Alta')  # Asigna una prioridad por defecto
