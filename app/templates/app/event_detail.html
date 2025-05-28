@@ -2,13 +2,18 @@
 
 {% block content %}
 
-<div div class="col-12 mb-0 mt-2 ms-4">
+<div div class="col-11 mb-0 mt-2 ms-4">
     <a href="{% url 'events' %}" class="btn btn-sm btn-outline-secondary mb-0">Volver</a>
 </div>
 <div class="container">
     <div class="row">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1>{{ event.title }}</h1>
+            <h1 class="mb-0 d-flex align-items-center gap-2">
+                {{ event.title }}
+                <span class="badge {{ event.get_status_css_class }} fs-6 align-top ms-2">
+                    {{ event.get_status_display }}
+                </span>
+            </h1>
             {% if user_is_organizer %}
                 <a href="{% url 'event_edit' event.id %}" class="btn btn-outline-primary">
                     <i class="bi bi-pencil me-1"></i>Editar
@@ -33,13 +38,19 @@
                         {% endfor %}
                     </p>
                 </div>
-                {%if not user.is_organizer %}
+                {% if not user.is_organizer %}
                     <div class="d-flex">
-                        <a href="{% url 'ticket_form' event.id%}" class="btn btn-success ms-auto">
-                            <i class="bi bi-ticket-perforated me-1"></i>Comprar Ticket
-                        </a>
+                        {% if event.status == 'cancelled' or event.status == 'finished' or event.status == 'sold_out' %}
+                            <button class="btn btn-outline-secondary ms-auto" disabled title="No disponible">
+                                <i class="bi bi-ticket-perforated me-1"></i>No disponible
+                            </button>
+                        {% else %}
+                            <a href="{% url 'ticket_form' event.id %}" class="btn btn-success ms-auto">
+                                <i class="bi bi-ticket-perforated me-1"></i>Comprar Ticket
+                            </a>
+                        {% endif %}
                     </div>
-                {%endif%}
+                {% endif %}
             </div>
         </div>
 
