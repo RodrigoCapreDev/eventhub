@@ -51,6 +51,15 @@
                 <button type="submit" class="btn btn-outline-primary w-100">Filtrar</button>
                 <a href="{% url 'events' %}" class="btn btn-outline-secondary w-100">Limpiar</a>
             </div>
+            <div class="col-md-3">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="show_past" id="show_past" {% if show_past %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="show_past">
+                        Incluir eventos pasados
+                    </label>
+                </div>
+            </div>
+
         </div>
     </form>
       

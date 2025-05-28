@@ -44,4 +44,6 @@ urlpatterns = [
     path('comments/create/<int:event_id>/', views.comment_create, name='comment_create'),
     path('comments/edit/<int:comment_id>/', views.comment_edit, name='comment_edit'),
     path('comments/delete/<int:comment_id>/', views.comment_delete, name='comment_delete'),
+    path('events/<int:event_id>/favorite/', views.toggle_favorite, name='toggle_favorite'),
+    path('favorites/', views.user_favorites, name='user_favorites'),
 ]
