@@ -73,7 +73,7 @@ class RegisterViewValidationTest(RegisterViewBaseTest):
         self.assertEqual(response.context["errors"]["email"], "Ya existe un usuario con este email")
 
         # Verificar que no se creó un nuevo usuario
-        self.assertEqual(User.objects.count(), 1)  # Solo existe el usuario creado en setUp
+        self.assertEqual(User.objects.count(), 2)  # hay un usuario jperez + creado en setUp
 
     def test_register_duplicate_username(self):
         """Test que verifica que no se puede registrar con un nombre de usuario existente"""
@@ -95,7 +95,7 @@ class RegisterViewValidationTest(RegisterViewBaseTest):
         )
 
         # Verificar que no se creó un nuevo usuario
-        self.assertEqual(User.objects.count(), 1)
+        self.assertEqual(User.objects.count(), 2)  # hay un usuario jperez + creado en setUp
 
     def test_register_password_mismatch(self):
         """Test que verifica que las contraseñas deben coincidir"""
@@ -114,7 +114,7 @@ class RegisterViewValidationTest(RegisterViewBaseTest):
         self.assertEqual(response.context["errors"]["password"], "Las contraseñas no coinciden")
 
         # Verificar que no se creó un nuevo usuario
-        self.assertEqual(User.objects.count(), 1)
+        self.assertEqual(User.objects.count(), 2)  # hay un usuario jperez + creado en setUp
 
     def test_register_missing_fields(self):
         """Test que verifica que todos los campos son requeridos"""

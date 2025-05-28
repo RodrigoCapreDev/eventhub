@@ -14,11 +14,26 @@
                     {{ event.get_status_display }}
                 </span>
             </h1>
-            {% if user_is_organizer %}
-                <a href="{% url 'event_edit' event.id %}" class="btn btn-outline-primary">
-                    <i class="bi bi-pencil me-1"></i>Editar
-                </a>
-            {% endif %}
+            <div>
+                {% if user.is_authenticated and not user.is_organizer %}
+                    <form method="post" action="{% url 'toggle_favorite' event.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-warning">
+                            {% if is_favorite %}
+                                <i class="bi bi-star-fill"></i> Quitar de favoritos
+                            {% else %}
+                                <i class="bi bi-star"></i> Añadir a favoritos
+                            {% endif %}
+                        </button>
+                    </form>
+                {% endif %}
+
+                {% if user_is_organizer %}
+                    <a href="{% url 'event_edit' event.id %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
+                {% endif %}
+            </div>
         </div>
         <div class="card">
             <div class="card-body">
@@ -260,7 +275,7 @@
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                         <i class="bi bi-trash"></i> Eliminar
                                     </button>
-                                </form>                                
+                                </form>
                             </div>
                             {% endif %}
                         </div>
@@ -333,5 +348,3 @@
         }
     </style>
 {% endblock %}
-
-
