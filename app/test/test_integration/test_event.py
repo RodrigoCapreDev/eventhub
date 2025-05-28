@@ -364,3 +364,50 @@ class EventDeleteViewTest(BaseEventTestCase):
 
         # Verificar que el evento sigue existiendo
         self.assertTrue(Event.objects.filter(pk=self.event1.id).exists())
+
+class EventsListHidePastTest(BaseEventTestCase):
+    """Tests para verificar que la vista de eventos oculta los eventos pasados por defecto"""
+
+    def setUp(self):
+        super().setUp()
+        # Crear evento pasado
+        self.past_event = Event.objects.create(
+            title="Evento Pasado",
+            description="Descripción del evento pasado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        self.past_event.categories.add(self.category)
+
+    def test_past_events_are_hidden_by_default(self):
+        """Verifica que los eventos con fecha pasada no aparecen en la lista"""
+        self.client.login(username="regular", password="password123")
+        response = self.client.get(reverse("events"))
+        self.assertEqual(response.status_code, 200)
+
+        # Los eventos en contexto deben contener los futuros, no el pasado
+        events = list(response.context["events"])
+        event_titles = [e.title for e in events]
+
+        # Asegurarse que evento pasado NO está
+        self.assertNotIn(self.past_event.title, event_titles)
+
+        # Eventos futuros sí deben estar
+        self.assertIn(self.event1.title, event_titles)
+        self.assertIn(self.event2.title, event_titles)
+
+    def test_past_events_hidden_for_organizer(self):
+        """Verifica que también los organizadores no ven eventos pasados por defecto"""
+        self.client.login(username="organizador", password="password123")
+        response = self.client.get(reverse("events"))
+        self.assertEqual(response.status_code, 200)
+        events = list(response.context["events"])
+        event_titles = [e.title for e in events]
+        self.assertNotIn(self.past_event.title, event_titles)
+
+    def test_past_events_not_visible_without_login(self):
+        """Verifica que al no estar logueado, redirige a login y no se ve nada"""
+        response = self.client.get(reverse("events"))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith("/accounts/login/"))

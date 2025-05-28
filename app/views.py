@@ -2,7 +2,7 @@ import datetime
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponseBadRequest
 from django.utils import timezone
 
@@ -67,6 +67,7 @@ def events(request):
     category_id = request.GET.get("category")
     venue_id = request.GET.get("venue")
     date = request.GET.get("date")
+    show_past = request.GET.get("show_past") == "on"
 
     if category_id:
         events = events.filter(categories__id=category_id)
@@ -76,6 +77,9 @@ def events(request):
 
     if date:
         events = events.filter(scheduled_at__date=date)
+
+    if not show_past:
+        events = events.filter(scheduled_at__gte=timezone.now())
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -88,6 +92,7 @@ def events(request):
             "categories": categories,
             "venues": venues,
             "user_is_organizer": request.user.is_organizer,
+            "show_past": show_past,
         }
     )
 
@@ -179,7 +184,7 @@ def event_form(request, id=None):
                 }
         else:
             event = get_object_or_404(Event, pk=id)
-            success, errors = event.update(title,venue, description, scheduled_at, request.user)
+            success, errors = event.update(title, venue, description, scheduled_at, request.user)
             if success:
                 event.categories.set(selected_categories)
                 return redirect("events")
