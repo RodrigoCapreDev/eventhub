@@ -127,7 +127,7 @@
                                     <i class="bi bi-pencil" aria-hidden="true"></i>
                                 </a>
                                 {% if event.status != 'cancelled' and event.status != 'finished' %}
-                                    <form action="{% url 'event_cancel' event.id %}" method="POST" style="display:inline;">
+                                    <form id="cancel-form-{{ event.id }}" action="{% url 'event_cancel' event.id %}" method="POST" style="display:inline;">
                                         {% csrf_token %}
                                         <button class="btn btn-sm btn-outline-danger"
                                             title="Cancelar"
@@ -137,7 +137,7 @@
                                         </button>
                                     </form>
                                 {% endif %}
-                                <form action="{% url 'event_delete' event.id %}" method="POST">
+                                <form id="delete-form-{{ event.id }}" action="{% url 'event_delete' event.id %}" method="POST">
                                     {% csrf_token %}
                                     <button class="btn btn-sm btn-outline-danger"
                                         title="Eliminar"

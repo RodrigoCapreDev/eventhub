@@ -74,7 +74,8 @@ class EventBaseTest(BaseE2ETest):
         expect(headers.nth(2)).to_have_text("Ubicación")
         expect(headers.nth(3)).to_have_text("Organizador")
         expect(headers.nth(4)).to_have_text("Categorías")
-        expect(headers.nth(5)).to_have_text("Acciones")
+        expect(headers.nth(5)).to_have_text("Estado")
+        expect(headers.nth(6)).to_have_text("Acciones")
 
         # Verificar que los eventos aparecen en la tabla
         rows = self.page.locator("table tbody tr")
@@ -87,6 +88,7 @@ class EventBaseTest(BaseE2ETest):
         expect(row0.locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(row0.locator("td").nth(3)).to_have_text("organizador")
         expect(row0.locator("td").nth(4)).to_have_text("Categoría de prueba")
+        expect(row0.locator("td").nth(5)).to_have_text("Activo")
 
         # Verificar datos del segundo evento
         expect(rows.nth(1).locator("td").nth(0)).to_have_text("Evento de prueba 2")
@@ -94,6 +96,7 @@ class EventBaseTest(BaseE2ETest):
         expect(rows.nth(1).locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(rows.nth(1).locator("td").nth(3)).to_have_text("organizador")
         expect(rows.nth(1).locator("td").nth(4)).to_have_text("Categoría de prueba")
+        expect(rows.nth(1).locator("td").nth(5)).to_have_text("Activo")
 
     def _table_has_correct_actions(self, user_type):
         """Método auxiliar para verificar que las acciones son correctas según el tipo de usuario"""
@@ -101,7 +104,8 @@ class EventBaseTest(BaseE2ETest):
 
         detail_button = row0.get_by_role("link", name="Ver Detalle")
         edit_button = row0.get_by_role("link", name="Editar")
-        delete_form = row0.locator("form")
+        cancel_form = row0.locator(f"#cancel-form-{self.event1.id}")
+        delete_form = row0.locator(f"#delete-form-{self.event1.id}")
 
         expect(detail_button).to_be_visible()
         expect(detail_button).to_have_attribute("href", f"/events/{self.event1.id}/")
@@ -110,14 +114,20 @@ class EventBaseTest(BaseE2ETest):
             expect(edit_button).to_be_visible()
             expect(edit_button).to_have_attribute("href", f"/events/{self.event1.id}/edit/")
 
+            expect(cancel_form).to_have_attribute("action", f"/events/{self.event1.id}/cancel/")
+            expect(cancel_form).to_have_attribute("method", "POST")
+            
             expect(delete_form).to_have_attribute("action", f"/events/{self.event1.id}/delete/")
             expect(delete_form).to_have_attribute("method", "POST")
 
             delete_button = delete_form.get_by_role("button", name="Eliminar")
+            cancel_button = cancel_form.get_by_role("button", name="Cancelar")
+            expect(cancel_button).to_be_visible()
             expect(delete_button).to_be_visible()
         else:
             expect(edit_button).to_have_count(0)
             expect(delete_form).to_have_count(0)
+            expect(cancel_form).to_have_count(0)
 
 
 class EventAuthenticationTest(EventBaseTest):
