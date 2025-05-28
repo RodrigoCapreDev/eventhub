@@ -4,7 +4,8 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from app.models import Category, Event, User, Venue
+from app.models import Category, Event, User, Venue, Notification, Ticket
+import uuid
 
 
 class BaseEventTestCase(TestCase):
@@ -411,3 +412,74 @@ class EventsListHidePastTest(BaseEventTestCase):
         response = self.client.get(reverse("events"))
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith("/accounts/login/"))
+
+class EventUpdateSendNotificationTest(BaseEventTestCase):
+    """Tests para verificar el envío de notificaciones al editar un evento"""
+
+    def setUp(self):
+        super().setUp()
+        # Crear un evento para editar
+        self.event_to_edit = Event.objects.create(
+            title="Evento a Editar",
+            description="Descripción del evento a editar",
+            scheduled_at=timezone.now() + datetime.timedelta(days=3),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        self.event_to_edit.categories.add(self.category)
+        Ticket.objects.create(
+            user=self.regular_user,
+            event=self.event_to_edit,
+            total_price=100.00,
+            ticket_type_id=1,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
+        )
+    
+    def test_notification_sent_on_venue_edit(self):
+        self.client.login(username="organizador", password="password123")
+
+        updated_venue = Venue.objects.create(
+            name="Nuevo Lugar",
+            address="Nueva Calle 123",
+            city="Nueva Ciudad",
+            capacity=150,
+        )
+
+        updated_data = {
+            "title": self.event_to_edit.title,
+            "description": self.event_to_edit.description,
+            "date": self.event_to_edit.scheduled_at.date().isoformat(),
+            "time": self.event_to_edit.scheduled_at.time().strftime("%H:%M"),
+            "venue": str(updated_venue.pk),  # Cambia el lugar
+            "categories": [str(self.category.pk)],
+        }
+
+        response = self.client.post(reverse("event_edit", args=[self.event_to_edit.id]), updated_data)
+        self.assertEqual(response.status_code, 302)
+
+        notifs = Notification.objects.filter(user=self.regular_user, event=self.event_to_edit)
+        self.assertTrue(any("nuevo lugar" in msg.lower() for msg in notifs.values_list("message", flat=True)))
+
+    def test_notification_sent_on_schedule_edit(self):
+        self.client.login(username="organizador", password="password123")
+
+        updated_data = {
+            "title": self.event_to_edit.title,
+            "description": self.event_to_edit.description,
+            "date": (timezone.now() + datetime.timedelta(days=5)).date().isoformat(),  # nuevo día
+            "time": "20:30",  # nueva hora
+            "venue": self.venue.pk, 
+            "categories": [str(self.category.pk)],
+        }
+
+        response = self.client.post(reverse("event_edit", args=[self.event_to_edit.id]), updated_data)
+        self.assertEqual(response.status_code, 302)
+
+        notifs = Notification.objects.filter(user=self.regular_user, event=self.event_to_edit)
+        self.assertTrue(any("nueva fecha" in msg.lower() for msg in notifs.values_list("message", flat=True)))
+
+
+
+
+
+   
