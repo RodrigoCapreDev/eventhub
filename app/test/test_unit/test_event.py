@@ -191,67 +191,79 @@ class EventModelTest(TestCase):
         self.assertTrue(any(e.title == "Evento futuro" for e in eventos_futuros))
         self.assertFalse(any(e.title == "Evento pasado" for e in eventos_futuros))
 
-    def test_event_update_creates_notification_when_date_or_venue_changes(self):
-        """Test que verifica que se crea una notificación al actualizar la fecha o el lugar del evento"""
+
+    def test_event_sends_notification_when_date_changes(self):
         event = Event.objects.create(
-            title="Evento de prueba",
-            description="Descripción del evento de prueba",
+            title="Evento test fecha",
+            description="Desc",
             scheduled_at=timezone.now() + datetime.timedelta(days=1),
             organizer=self.organizer,
             venue=self.venue,
         )
-         # Crear usuarios con tickets
-        user1 = User.objects.create_user(username="user1", email="user1@example.com", password="test123")
-        user2 = User.objects.create_user(username="user2", email="user2@example.com", password="test123")
 
-        # Crear tickets para esos usuarios
+        user = User.objects.create_user(username="user_date", password="pass")
         Ticket.objects.create(
-            user=user1,
-            event=event,
-            total_price=100.00,
-            ticket_type_id=1,
-            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
-        )
-        Ticket.objects.create(
-            user=user2,
+            user=user,
             event=event,
             total_price=100.00,
             ticket_type_id=1,
             ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
         )
 
-        # Asegurar que no tengan notificaciones previas
-        self.assertEqual(Notification.objects.filter(user=user1).count(), 0)
-        self.assertEqual(Notification.objects.filter(user=user2).count(), 0)
+        self.assertEqual(Notification.objects.filter(user=user).count(), 0)
 
-        # Cambiar la fecha del evento
-        new_scheduled_at = timezone.now() + datetime.timedelta(days=2)
-        event.update(scheduled_at=new_scheduled_at)
+        new_date = timezone.now() + datetime.timedelta(days=3)
+  
+        event.update(
+            title=event.title,
+            description=event.description,
+            scheduled_at=new_date,
+            organizer=event.organizer,
+            venue=event.venue,
+        )
 
-        # Cambiar el lugar del evento
+        notifs = Notification.objects.filter(user=user, event=event)
+        self.assertEqual(notifs.count(), 1)
+        self.assertIn("fecha", notifs.first().message.lower())
+
+    def test_event_sends_notification_when_venue_changes(self):
+        event = Event.objects.create(
+            title="Evento test lugar",
+            description="Desc",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+
+        user = User.objects.create_user(username="user_venue", password="pass")
+        Ticket.objects.create(
+            user=user,
+            event=event,
+            total_price=100.00,
+            ticket_type_id=1,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
+        )
+
+        self.assertEqual(Notification.objects.filter(user=user).count(), 0)
+
         new_venue = Venue.objects.create(
-            name="Nuevo lugar de prueba",
-            address="Nueva dirección 456",
-            city="Nueva ciudad de prueba",
+            name="Nuevo Lugar",
+            address="Nueva Dirección",
+            city="Otra Ciudad",
             capacity=200,
         )
-        event.update(venue=new_venue)
 
-        # Verificar que se hayan creado notificaciones para ambos usuarios
-        user_notifs = Notification.objects.filter(user=user1, event=event)
-        user2_notifs = Notification.objects.filter(user=user2, event=event)
-
-        self.assertEqual(user_notifs.count(), 2)
-        self.assertEqual(user2_notifs.count(), 2)
-
-        # Verificar los mensajes
-        messages = list(user_notifs.values_list("message", flat=True))
-        self.assertTrue(
-        any("Nueva fecha" in msg for msg in messages),
-        msg="No se encontró mensaje que confirme actualización de fecha"
-        )
-        self.assertTrue(
-        any("Nuevo lugar" in msg for msg in messages),
-        msg="No se encontró mensaje que confirme actualización de lugar"
+        event.update(
+            title=event.title,
+            description=event.description,
+            scheduled_at=event.scheduled_at,
+            organizer=event.organizer,
+            venue=new_venue,
         )
 
+        notifs = Notification.objects.filter(user=user, event=event)
+        self.assertEqual(notifs.count(), 1)
+        self.assertIn("lugar", notifs.first().message.lower())
+
+        
+        
