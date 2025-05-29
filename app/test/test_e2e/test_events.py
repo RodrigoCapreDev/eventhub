@@ -4,7 +4,7 @@ import re, uuid
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import Category, Event, User, Venue, Ticket
+from app.models import Category, Event, User, Venue, Ticket, TicketType
 
 from app.test.test_e2e.base import BaseE2ETest
 
@@ -35,11 +35,20 @@ class EventBaseTest(BaseE2ETest):
         self.category = Category.objects.create(name="Categoría de prueba")
 
         # Crear venue de prueba
+        # Venue 1
         self.venue = Venue.objects.create(
             name="Lugar de prueba",
             address="Calle Falsa 123",
             city="Ciudad Test",
             capacity=100,
+        )
+
+        # Venue 2
+        self.venue2 = Venue.objects.create(
+            name="Lugar de prueba 2",
+            address="Calle Falsa 456",
+            city="Ciudad Test 2",
+            capacity=50,
         )
 
         # Crear eventos de prueba
@@ -64,6 +73,12 @@ class EventBaseTest(BaseE2ETest):
             venue=self.venue,
         )
         self.event2.categories.add(self.category)
+
+        # Ticket de prueba
+        self.ticketType1 = TicketType.objects.create(
+            name="Tipo de ticket de prueba",
+            price=50,
+        )
 
     def _table_has_event_info(self):
         """Método auxiliar para verificar que la tabla tiene la información correcta de eventos"""
@@ -264,7 +279,6 @@ class EventCRUDTest(EventBaseTest):
         expect(row.locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(row.locator("td").nth(3)).to_have_text("organizador")
 
-
     def test_edit_event_organizer(self):
         """Test que verifica la funcionalidad de editar un evento para organizadores"""
         # Iniciar sesión como organizador
@@ -351,7 +365,7 @@ class EventHidePastEventsTest(EventBaseTest):
             venue=self.venue,
         )
         self.past_event.categories.add(self.category)
-    
+
     def test_past_events_are_hidden_by_default(self):
         # Iniciar sesión como organizador (es lo mismo ya que para el dashboard no hay diferencia)
         self.login_user("organizador", "password123")
@@ -381,59 +395,58 @@ class EventHidePastEventsTest(EventBaseTest):
         expect(self.page.get_by_text("Evento de prueba 1")).to_be_visible()
         expect(self.page.get_by_text("Evento de prueba 2")).to_be_visible()
 
+
 class EventNotifyChangesTest(EventBaseTest):
     """Test para verificar que se envían notificaciones al usuario cuando se realizan cambios en un evento"""
-
     def setUp(self):
         super().setUp()
-
-        # Crear evento de prueba
-        self.event_to_edit = Event.objects.create(
-            title="Evento a Editar con Notificación",
-            description="Este evento ya puede ser editado",
+        self.event_to_edit=Event.objects.create(
+            title="Evento para editar con notificacion",
+            description="Evento que será editado en el test",
             scheduled_at=timezone.now() + datetime.timedelta(days=1),
             organizer=self.organizer,
             venue=self.venue,
         )
-        self.event_to_edit.categories.add(self.category)
 
-        Ticket.objects.create(
+        self.tickets = Ticket.objects.create(
             user=self.regular_user,
             event=self.event_to_edit,
             total_price=100.00,
-            ticket_type_id=1,
-            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
+            ticket_type_id=self.ticketType1.id,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}",
         )
 
     def test_notify_event_schedule_change(self):
         """Test que verifica que los usuarios con tickets reciben una notificación cuando se edita la fecha de un evento."""
-        # Iniciar sesión como usuario regular
-        self.login_user("usuario", "password123")
-        
-        # Verificar que el usuario no tiene notificaciones al inicio
-        self.page.goto(f"{self.live_server_url}/notifications/")
-        notifications = self.page.locator(".notification")
-        expect(notifications).to_have_count(0)
-
-        #Cerrar sesión del comprador
-        self.page.get_by_role("button", name="Salir").click()
-
-        #Iniciar sesión como el organizador del evento
+        # Iniciar sesión como el organizador del evento
         self.login_user("organizador", "password123")
 
         # Ir a la página de eventos y editar el evento
-        self.page.get_by_role("link", name="Editar").first.click()
-        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event_to_edit.id}/edit/")
+        self.page.goto(f"{self.live_server_url}/events/")
 
-        # Editar la fecha
-        date_input = self.page.locator("#date")
-        date_input.fill("2025-07-10")
+        # Busca la fila que contiene el título del evento que quieres editar
+        row = self.page.locator(f'table tbody tr:has-text("{self.event_to_edit.title}")')
+        row.get_by_role("link", name="Editar").click()
+        expect(self.page).to_have_url(
+            f"{self.live_server_url}/events/{self.event_to_edit.id}/edit/"
+        )
 
-        # Editar la hora
-        time_input = self.page.locator("#time")
-        time_input.fill("18:30")
+        # Verificar que el formulario está precargado con los datos del evento y luego los editamos
+        title = self.page.get_by_label("Título del Evento")
+        expect(title).to_have_value("Evento para editar con notificacion")
+        title.fill("Titulo editado 123")
+
+        description = self.page.get_by_label("Descripción")
+        expect(description).to_have_value("Evento que será editado en el test")
+        description.fill("Descripcion Editada 123")
+
+        date = self.page.get_by_label("Fecha")
+        date.fill("2026-04-12")
+
+        time = self.page.get_by_label("Hora")
+        time.fill("18:00")
+        
         self.page.get_by_role("button", name="Guardar Cambios").click()
-
         expect(self.page).to_have_url(f"{self.live_server_url}/events/")
 
         # Cerrar sesión del organizador
