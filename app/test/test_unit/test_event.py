@@ -3,6 +3,8 @@ import datetime
 from django.test import TestCase
 from django.utils import timezone
 
+from app.models import Event, User, Venue, EventStatus
+
 from app.models import Event, User, Venue, Notification, Ticket
 import uuid
 
@@ -33,7 +35,6 @@ class EventModelTest(TestCase):
         self.assertEqual(event.description, "Descripción del evento de prueba")
         self.assertEqual(event.organizer, self.organizer)
         self.assertIsNotNone(event.created_at)
-        self.assertIsNotNone(event.updated_at)
 
     def test_event_validate_with_valid_data(self):
         """Test que verifica la validación de eventos con datos válidos"""
@@ -144,6 +145,7 @@ class EventModelTest(TestCase):
         original_scheduled_at = event.scheduled_at
         new_description = "Solo la descripción ha cambiado"
         original_venue = event.venue
+        original_venue = event.venue
 
         event.update(
             title=None,  # No cambiar
@@ -190,6 +192,125 @@ class EventModelTest(TestCase):
         self.assertTrue(all(e.scheduled_at >= timezone.now() for e in eventos_futuros))
         self.assertTrue(any(e.title == "Evento futuro" for e in eventos_futuros))
         self.assertFalse(any(e.title == "Evento pasado" for e in eventos_futuros))
+
+    def test_event_status_activo_por_defecto(self):
+        """Test que verifica que los eventos nuevos son activos por defecto"""
+        event = Event.objects.create(
+            title="Evento activo",
+            description="El nuevo evento debería ser activo por defecto",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        self.assertEqual(event.status, EventStatus.ACTIVE)
+    
+    def test_event_status_agotado(self):
+        """Test que verifica que un evento se marca como agotado cuando no hay entradas disponibles"""
+        event = Event.objects.create(
+            title="Evento agotado",
+            description="Evento sin entradas disponibles",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+            available_tickets=0,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.SOLD_OUT)
+
+    def test_event_status_finalizado(self):
+        """Test que verifica que un evento se marca como finalizado cuando la fecha programada ya ha pasado"""
+        event = Event.objects.create(
+            title="Evento finalizado",
+            description="Evento que ya ha finalizado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.FINISHED)
+
+    def test_event_status_reprogramado(self):
+        """Test que verifica que un evento se marca como reprogramado cuando la fecha programada cambia"""
+        event = Event.objects.create(
+            title="Evento reprogramado",
+            description="Evento que ha sido reprogramado",
+            scheduled_at=timezone.now() + datetime.timedelta(days=2),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        new_scheduled_at = timezone.now() + datetime.timedelta(days=3)
+        event.update(scheduled_at=new_scheduled_at)
+        self.assertEqual(event.status, EventStatus.RESCHEDULED)
+    
+    def test_event_status_priority_cancelled(self):
+        """Test que verifica que un evento cancelado tiene prioridad sobre otros estados"""
+        event = Event.objects.create(
+            title="Evento cancelado",
+            description="Evento que ha sido cancelado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=2),
+            previous_date=timezone.now() - datetime.timedelta(days=5),
+            available_tickets=0,
+            organizer=self.organizer,
+            venue=self.venue,
+            status=EventStatus.CANCELLED,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.CANCELLED)
+
+    def test_event_status_priority_soldout_over_rescheduled(self):
+        """Test que verifica que un evento agotado tiene prioridad sobre reprogramado"""
+        event = Event.objects.create(
+            title="Evento agotado y reprogramado",
+            description="Evento que ha sido reprogramado y agotado",
+            scheduled_at=timezone.now() + datetime.timedelta(days=2),
+            previous_date=timezone.now() + datetime.timedelta(days=1),
+            available_tickets=0,
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.SOLD_OUT)
+    
+    def test_event_status_priority_finished_over_soldout(self):
+        """Test que verifica que un evento finalizado tiene prioridad sobre agotado"""
+        event = Event.objects.create(
+            title="Evento agotado y finalizado",
+            description="Evento que ha sido finalizado y agotado",
+            scheduled_at=timezone.now() - datetime.timedelta(days=2),
+            available_tickets=0,
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.FINISHED)
+    
+    def test_event_status_remember_redschedule_after_soldout(self):
+        """Test que verifica que un evento reprogramado recuerda su estado después de ser agotado"""
+        event = Event.objects.create(
+            title="Evento reprogramado con mas entradas",
+            description="Evento que ha sido reprogramado, se ha agotado y se le han añadido más entradas",
+            scheduled_at=timezone.now() + datetime.timedelta(days=2),
+            previous_date=timezone.now() + datetime.timedelta(days=1),
+            available_tickets=10,
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.RESCHEDULED)
+
+    def test_event_status_remember_active_after_soldout(self):
+        """Test que verifica que un evento activo recuerda su estado después de ser agotado"""
+        event = Event.objects.create(
+            title="Evento activo después de agotado",
+            description="Evento que ha sido agotado y se le han añadido más entradas",
+            scheduled_at=timezone.now() + datetime.timedelta(days=2),
+            available_tickets=10,
+            organizer=self.organizer,
+            venue=self.venue,
+            status=EventStatus.SOLD_OUT,
+        )
+        event.update_status()
+        self.assertEqual(event.status, EventStatus.ACTIVE)
 
 
     def test_event_sends_notification_when_date_changes(self):

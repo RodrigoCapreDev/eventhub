@@ -73,6 +73,11 @@ class EventBaseTest(BaseE2ETest):
             venue=self.venue,
         )
         self.event2.categories.add(self.category)
+        # Ticket de prueba
+        self.ticketType1 = TicketType.objects.create(
+            name="Tipo de ticket de prueba",
+            price=50,
+        )
 
         # Ticket de prueba
         self.ticketType1 = TicketType.objects.create(
@@ -89,7 +94,8 @@ class EventBaseTest(BaseE2ETest):
         expect(headers.nth(2)).to_have_text("Ubicación")
         expect(headers.nth(3)).to_have_text("Organizador")
         expect(headers.nth(4)).to_have_text("Categorías")
-        expect(headers.nth(5)).to_have_text("Acciones")
+        expect(headers.nth(5)).to_have_text("Estado")
+        expect(headers.nth(6)).to_have_text("Acciones")
 
         # Verificar que los eventos aparecen en la tabla
         rows = self.page.locator("table tbody tr")
@@ -102,6 +108,7 @@ class EventBaseTest(BaseE2ETest):
         expect(row0.locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(row0.locator("td").nth(3)).to_have_text("organizador")
         expect(row0.locator("td").nth(4)).to_have_text("Categoría de prueba")
+        expect(row0.locator("td").nth(5)).to_have_text("Activo")
 
         # Verificar datos del segundo evento
         expect(rows.nth(1).locator("td").nth(0)).to_have_text("Evento de prueba 2")
@@ -109,6 +116,7 @@ class EventBaseTest(BaseE2ETest):
         expect(rows.nth(1).locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(rows.nth(1).locator("td").nth(3)).to_have_text("organizador")
         expect(rows.nth(1).locator("td").nth(4)).to_have_text("Categoría de prueba")
+        expect(rows.nth(1).locator("td").nth(5)).to_have_text("Activo")
 
     def _table_has_correct_actions(self, user_type):
         """Método auxiliar para verificar que las acciones son correctas según el tipo de usuario"""
@@ -116,7 +124,8 @@ class EventBaseTest(BaseE2ETest):
 
         detail_button = row0.get_by_role("link", name="Ver Detalle")
         edit_button = row0.get_by_role("link", name="Editar")
-        delete_form = row0.locator("form")
+        cancel_form = row0.locator(f"#cancel-form-{self.event1.id}")
+        delete_form = row0.locator(f"#delete-form-{self.event1.id}")
 
         expect(detail_button).to_be_visible()
         expect(detail_button).to_have_attribute("href", f"/events/{self.event1.id}/")
@@ -125,14 +134,20 @@ class EventBaseTest(BaseE2ETest):
             expect(edit_button).to_be_visible()
             expect(edit_button).to_have_attribute("href", f"/events/{self.event1.id}/edit/")
 
+            expect(cancel_form).to_have_attribute("action", f"/events/{self.event1.id}/cancel/")
+            expect(cancel_form).to_have_attribute("method", "POST")
+            
             expect(delete_form).to_have_attribute("action", f"/events/{self.event1.id}/delete/")
             expect(delete_form).to_have_attribute("method", "POST")
 
             delete_button = delete_form.get_by_role("button", name="Eliminar")
+            cancel_button = cancel_form.get_by_role("button", name="Cancelar")
+            expect(cancel_button).to_be_visible()
             expect(delete_button).to_be_visible()
         else:
             expect(edit_button).to_have_count(0)
             expect(delete_form).to_have_count(0)
+            expect(cancel_form).to_have_count(0)
 
 
 class EventAuthenticationTest(EventBaseTest):
@@ -467,3 +482,116 @@ class EventNotifyChangesTest(EventBaseTest):
         # Verificar que esa única notificación contiene el texto esperado
         expect(notifications.first).to_contain_text("ha sido actualizado")
         expect(notifications.first).to_contain_text("Nueva fecha")
+
+
+class EventActionDisabledByStatusTest(EventBaseTest):
+    """Tests para verificar que las acciones están deshabilitadas según el estado del evento"""
+
+    def test_cancel_event(self):
+        """Test que verifica que un evento activo puede ser cancelado"""
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Hacer clic en el botón cancelar del primer evento
+        cancel_form = self.page.locator(f"#cancel-form-{self.event1.id}")
+        expect(cancel_form).to_be_visible()
+        cancel_form.get_by_role("button", name="Cancelar").click()
+
+        # Verificar que redirigió a la página de eventos
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event1.id}/")
+
+        # Verificar que el evento ahora está marcado como cancelado
+        expect(self.page.get_by_text("Cancelado")).to_be_visible()
+
+
+class EventNotifyChangesTest(EventBaseTest):
+    """Test para verificar que se envían notificaciones al usuario cuando se realizan cambios en un evento"""
+    def setUp(self):
+        super().setUp()
+        self.event_to_edit=Event.objects.create(
+            title="Evento para editar con notificacion",
+            description="Evento que será editado en el test",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+
+        self.tickets = Ticket.objects.create(
+            user=self.regular_user,
+            event=self.event_to_edit,
+            total_price=100.00,
+            ticket_type_id=self.ticketType1.id,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}",
+        )
+
+    def test_notify_event_schedule_change(self):
+        """Test que verifica que los usuarios con tickets reciben una notificación cuando se edita la fecha de un evento."""
+        # Iniciar sesión como el organizador del evento
+        self.login_user("organizador", "password123")
+
+        # Ir a la página de eventos y editar el evento
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Busca la fila que contiene el título del evento que quieres editar
+        row = self.page.locator(f'table tbody tr:has-text("{self.event_to_edit.title}")')
+        row.get_by_role("link", name="Editar").click()
+        expect(self.page).to_have_url(
+            f"{self.live_server_url}/events/{self.event_to_edit.id}/edit/"
+        )
+
+        # Verificar que el formulario está precargado con los datos del evento y luego los editamos
+        title = self.page.get_by_label("Título del Evento")
+        expect(title).to_have_value("Evento para editar con notificacion")
+        title.fill("Titulo editado 123")
+
+        description = self.page.get_by_label("Descripción")
+        expect(description).to_have_value("Evento que será editado en el test")
+        description.fill("Descripcion Editada 123")
+
+        date = self.page.get_by_label("Fecha")
+        date.fill("2026-04-12")
+
+        time = self.page.get_by_label("Hora")
+        time.fill("18:00")
+        
+        self.page.get_by_role("button", name="Guardar Cambios").click()
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/")
+
+        # Cerrar sesión del organizador
+        self.page.get_by_role("button", name="Salir").click()
+
+        # Volver a iniciar sesión como el usuario comprador
+        self.login_user("usuario", "password123")
+
+        # Verificar que el usuario ahora tiene una notificación relacionada al evento
+        self.page.goto(f"{self.live_server_url}/notifications/")
+
+        # Obtener todas las notificaciones visibles
+        notifications = self.page.locator("li.list-group-item")
+
+        # Verificar que haya exactamente una
+        expect(notifications).to_have_count(1)
+
+        # Verificar que esa única notificación contiene el texto esperado
+        expect(notifications.first).to_contain_text("ha sido actualizado")
+        expect(notifications.first).to_contain_text("Nueva fecha")
+
+        
+class EventActionDisabledByStatusTest(EventBaseTest):
+    """Tests para verificar que las acciones están deshabilitadas según el estado del evento"""
+
+    def test_cancel_event(self):
+        """Test que verifica que un evento activo puede ser cancelado"""
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Hacer clic en el botón cancelar del primer evento
+        cancel_form = self.page.locator(f"#cancel-form-{self.event1.id}")
+        expect(cancel_form).to_be_visible()
+        cancel_form.get_by_role("button", name="Cancelar").click()
+
+        # Verificar que redirigió a la página de eventos
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event1.id}/")
+
+        # Verificar que el evento ahora está marcado como cancelado
+        expect(self.page.get_by_text("Cancelado")).to_be_visible()

@@ -10,7 +10,8 @@
                 <tr>
                     <th>Cantidad</th>
                     {% if show_event %}
-                    <th class="text-center">Evento</th>
+                        <th class="text-center">Evento</th>
+                        <th class="text-center">Estado</th>
                     {% endif %}
                     {% if show_user %}
                     <th class="text-center">Usuario</th>
@@ -27,6 +28,11 @@
                     <td>{{ ticket.quantity }}</td>
                     {% if show_event %}
                     <td class="text-center">{{ ticket.event.title }}</td>
+                    <td class="text-center">
+                        <span class="badge {{ ticket.event.get_status_css_class }} fs-10">
+                        {{ ticket.event.get_status_display }}
+                        </span>
+                    </td>
                     {% endif %}
                     {% if show_user %}
                     <td class="text-center">{{ ticket.user.username }}</td>
