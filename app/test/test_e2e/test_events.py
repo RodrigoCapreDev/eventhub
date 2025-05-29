@@ -390,3 +390,22 @@ class EventHidePastEventsTest(EventBaseTest):
         # El evento futuro también debe seguir visible
         expect(self.page.get_by_text("Evento de prueba 1")).to_be_visible()
         expect(self.page.get_by_text("Evento de prueba 2")).to_be_visible()
+
+class EventActionDisabledByStatusTest(EventBaseTest):
+    """Tests para verificar que las acciones están deshabilitadas según el estado del evento"""
+
+    def test_cancel_event(self):
+        """Test que verifica que un evento activo puede ser cancelado"""
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Hacer clic en el botón cancelar del primer evento
+        cancel_form = self.page.locator(f"#cancel-form-{self.event1.id}")
+        expect(cancel_form).to_be_visible()
+        cancel_form.get_by_role("button", name="Cancelar").click()
+
+        # Verificar que redirigió a la página de eventos
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event1.id}/")
+
+        # Verificar que el evento ahora está marcado como cancelado
+        expect(self.page.get_by_text("Cancelado")).to_be_visible()
