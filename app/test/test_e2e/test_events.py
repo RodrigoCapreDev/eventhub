@@ -1,11 +1,10 @@
 import datetime
-import re
+import re, uuid
 
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import Category, Event, User, Venue
-from app.models import Category, Event, User, Venue
+from app.models import Category, Event, User, Venue, Ticket, TicketType
 
 from app.test.test_e2e.base import BaseE2ETest
 
@@ -36,11 +35,20 @@ class EventBaseTest(BaseE2ETest):
         self.category = Category.objects.create(name="Categoría de prueba")
 
         # Crear venue de prueba
+        # Venue 1
         self.venue = Venue.objects.create(
             name="Lugar de prueba",
             address="Calle Falsa 123",
             city="Ciudad Test",
             capacity=100,
+        )
+
+        # Venue 2
+        self.venue2 = Venue.objects.create(
+            name="Lugar de prueba 2",
+            address="Calle Falsa 456",
+            city="Ciudad Test 2",
+            capacity=50,
         )
 
         # Crear eventos de prueba
@@ -65,7 +73,17 @@ class EventBaseTest(BaseE2ETest):
             venue=self.venue,
         )
         self.event2.categories.add(self.category)
-        self.event2.categories.add(self.category)
+        # Ticket de prueba
+        self.ticketType1 = TicketType.objects.create(
+            name="Tipo de ticket de prueba",
+            price=50,
+        )
+
+        # Ticket de prueba
+        self.ticketType1 = TicketType.objects.create(
+            name="Tipo de ticket de prueba",
+            price=50,
+        )
 
     def _table_has_event_info(self):
         """Método auxiliar para verificar que la tabla tiene la información correcta de eventos"""
@@ -276,7 +294,6 @@ class EventCRUDTest(EventBaseTest):
         expect(row.locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(row.locator("td").nth(3)).to_have_text("organizador")
 
-
     def test_edit_event_organizer(self):
         """Test que verifica la funcionalidad de editar un evento para organizadores"""
         # Iniciar sesión como organizador
@@ -363,7 +380,7 @@ class EventHidePastEventsTest(EventBaseTest):
             venue=self.venue,
         )
         self.past_event.categories.add(self.category)
-    
+
     def test_past_events_are_hidden_by_default(self):
         # Iniciar sesión como organizador (es lo mismo ya que para el dashboard no hay diferencia)
         self.login_user("organizador", "password123")
@@ -393,6 +410,7 @@ class EventHidePastEventsTest(EventBaseTest):
         expect(self.page.get_by_text("Evento de prueba 1")).to_be_visible()
         expect(self.page.get_by_text("Evento de prueba 2")).to_be_visible()
 
+
 class EventActionDisabledByStatusTest(EventBaseTest):
     """Tests para verificar que las acciones están deshabilitadas según el estado del evento"""
 
@@ -411,3 +429,77 @@ class EventActionDisabledByStatusTest(EventBaseTest):
 
         # Verificar que el evento ahora está marcado como cancelado
         expect(self.page.get_by_text("Cancelado")).to_be_visible()
+
+
+class EventNotifyChangesTest(EventBaseTest):
+    """Test para verificar que se envían notificaciones al usuario cuando se realizan cambios en un evento"""
+    def setUp(self):
+        super().setUp()
+        self.event_to_edit=Event.objects.create(
+            title="Evento para editar con notificacion",
+            description="Evento que será editado en el test",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+
+        self.tickets = Ticket.objects.create(
+            user=self.regular_user,
+            event=self.event_to_edit,
+            ticket_type=self.ticketType1,
+            quantity=1,
+            total_price=50,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}",
+        ) 
+
+    def test_notify_event_schedule_change(self):
+        """Test que verifica que los usuarios con tickets reciben una notificación cuando se edita la fecha de un evento."""
+        # Iniciar sesión como el organizador del evento
+        self.login_user("organizador", "password123")
+
+        # Ir a la página de eventos y editar el evento
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Busca la fila que contiene el título del evento que quieres editar
+        row = self.page.locator(f'table tbody tr:has-text("{self.event_to_edit.title}")')
+        row.get_by_role("link", name="Editar").click()
+        expect(self.page).to_have_url(
+            f"{self.live_server_url}/events/{self.event_to_edit.id}/edit/"
+        )
+
+        # Verificar que el formulario está precargado con los datos del evento y luego los editamos
+        title = self.page.get_by_label("Título del Evento")
+        expect(title).to_have_value("Evento para editar con notificacion")
+        title.fill("Titulo editado 123")
+
+        description = self.page.get_by_label("Descripción")
+        expect(description).to_have_value("Evento que será editado en el test")
+        description.fill("Descripcion Editada 123")
+
+        date = self.page.get_by_label("Fecha")
+        date.fill("2026-04-12")
+
+        time = self.page.get_by_label("Hora")
+        time.fill("18:00")
+        
+        self.page.get_by_role("button", name="Guardar Cambios").click()
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/")
+
+        # Cerrar sesión del organizador
+        self.page.get_by_role("button", name="Salir").click()
+
+        # Volver a iniciar sesión como el usuario comprador
+        self.login_user("usuario", "password123")
+
+        # Verificar que el usuario ahora tiene una notificación relacionada al evento
+        self.page.goto(f"{self.live_server_url}/notifications/")
+
+        # Obtener todas las notificaciones visibles
+        notifications = self.page.locator("li.list-group-item")
+
+        # Verificar que haya exactamente una
+        expect(notifications).to_have_count(1)
+
+        # Verificar que esa única notificación contiene el texto esperado
+        expect(notifications.first).to_contain_text("ha sido actualizado")
+        expect(notifications.first).to_contain_text("Nueva fecha")

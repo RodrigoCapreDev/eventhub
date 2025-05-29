@@ -150,6 +150,9 @@ class Event(models.Model):
         if errors:
             return False, errors
 
+        scheduled_at_changed = self.scheduled_at != scheduled_at
+        venue_changed=self.venue != venue   
+
         self.title = title.strip()
         self.venue = venue
         self.available_tickets = venue.capacity if venue else self.available_tickets
@@ -160,7 +163,28 @@ class Event(models.Model):
         self.organizer = organizer
         self.save()
         self.update_status()
-        return True ,None
+
+        if scheduled_at_changed or venue_changed :
+            self.notify_event_change(scheduled_at_changed, venue_changed)
+
+        return True, None
+    
+    def notify_event_change(self, scheduled_at_change=False, venue_change=False):
+        users = User.objects.filter(tickets__event=self).distinct()
+
+        for user in users:
+            # Aquí usás tu sistema de notificaciones personalizado
+            notification = Notification.objects.create(
+                title=f"Actualización del evento: {self.title}",
+                message=(
+                    f"El evento '{self.title}' ha sido actualizado.\n"
+                    + (f"📅 Nueva fecha: {self.scheduled_at}\n" if scheduled_at_change else "")
+                    + (f"📍 Nuevo lugar: {self.venue.name}\n" if venue_change and self.venue else "")
+                ),
+                event=self,
+                priority=NotificationPriority.objects.get(description='Alta')  # Asigna una prioridad por defecto
+            )
+            notification.user.add(user)  # Esto dispara tu señal `m2m_changed`
     
     def update_status(self):
         previous_status = self.status

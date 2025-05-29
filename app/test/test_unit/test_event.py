@@ -5,6 +5,8 @@ from django.utils import timezone
 
 from app.models import Event, User, Venue, EventStatus
 
+from app.models import Event, User, Venue, Notification, Ticket
+import uuid
 
 class EventModelTest(TestCase):
     def setUp(self):
@@ -309,3 +311,80 @@ class EventModelTest(TestCase):
         )
         event.update_status()
         self.assertEqual(event.status, EventStatus.ACTIVE)
+
+
+    def test_event_sends_notification_when_date_changes(self):
+        event = Event.objects.create(
+            title="Evento test fecha",
+            description="Desc",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+
+        user = User.objects.create_user(username="user_date", password="pass")
+        Ticket.objects.create(
+            user=user,
+            event=event,
+            total_price=100.00,
+            ticket_type_id=1,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
+        )
+
+        self.assertEqual(Notification.objects.filter(user=user).count(), 0)
+
+        new_date = timezone.now() + datetime.timedelta(days=3)
+  
+        event.update(
+            title=event.title,
+            description=event.description,
+            scheduled_at=new_date,
+            organizer=event.organizer,
+            venue=event.venue,
+        )
+
+        notifs = Notification.objects.filter(user=user, event=event)
+        self.assertEqual(notifs.count(), 1)
+        self.assertIn("fecha", notifs.first().message.lower())
+
+    def test_event_sends_notification_when_venue_changes(self):
+        event = Event.objects.create(
+            title="Evento test lugar",
+            description="Desc",
+            scheduled_at=timezone.now() + datetime.timedelta(days=1),
+            organizer=self.organizer,
+            venue=self.venue,
+        )
+
+        user = User.objects.create_user(username="user_venue", password="pass")
+        Ticket.objects.create(
+            user=user,
+            event=event,
+            total_price=100.00,
+            ticket_type_id=1,
+            ticket_code=f"TEST-{uuid.uuid4().hex[:8]}"
+        )
+
+        self.assertEqual(Notification.objects.filter(user=user).count(), 0)
+
+        new_venue = Venue.objects.create(
+            name="Nuevo Lugar",
+            address="Nueva Dirección",
+            city="Otra Ciudad",
+            capacity=200,
+        )
+
+        event.update(
+            title=event.title,
+            description=event.description,
+            scheduled_at=event.scheduled_at,
+            organizer=event.organizer,
+            venue=new_venue,
+        )
+
+        notifs = Notification.objects.filter(user=user, event=event)
+        self.assertEqual(notifs.count(), 1)
+        self.assertIn("lugar", notifs.first().message.lower())
+
+        
+        
