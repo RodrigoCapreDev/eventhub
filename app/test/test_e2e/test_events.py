@@ -5,6 +5,7 @@ from django.utils import timezone
 from playwright.sync_api import expect
 
 from app.models import Category, Event, User, Venue
+from app.models import Category, Event, User, Venue
 
 from app.test.test_e2e.base import BaseE2ETest
 
@@ -64,6 +65,7 @@ class EventBaseTest(BaseE2ETest):
             venue=self.venue,
         )
         self.event2.categories.add(self.category)
+        self.event2.categories.add(self.category)
 
     def _table_has_event_info(self):
         """Método auxiliar para verificar que la tabla tiene la información correcta de eventos"""
@@ -74,7 +76,8 @@ class EventBaseTest(BaseE2ETest):
         expect(headers.nth(2)).to_have_text("Ubicación")
         expect(headers.nth(3)).to_have_text("Organizador")
         expect(headers.nth(4)).to_have_text("Categorías")
-        expect(headers.nth(5)).to_have_text("Acciones")
+        expect(headers.nth(5)).to_have_text("Estado")
+        expect(headers.nth(6)).to_have_text("Acciones")
 
         # Verificar que los eventos aparecen en la tabla
         rows = self.page.locator("table tbody tr")
@@ -87,6 +90,7 @@ class EventBaseTest(BaseE2ETest):
         expect(row0.locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(row0.locator("td").nth(3)).to_have_text("organizador")
         expect(row0.locator("td").nth(4)).to_have_text("Categoría de prueba")
+        expect(row0.locator("td").nth(5)).to_have_text("Activo")
 
         # Verificar datos del segundo evento
         expect(rows.nth(1).locator("td").nth(0)).to_have_text("Evento de prueba 2")
@@ -94,6 +98,7 @@ class EventBaseTest(BaseE2ETest):
         expect(rows.nth(1).locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(rows.nth(1).locator("td").nth(3)).to_have_text("organizador")
         expect(rows.nth(1).locator("td").nth(4)).to_have_text("Categoría de prueba")
+        expect(rows.nth(1).locator("td").nth(5)).to_have_text("Activo")
 
     def _table_has_correct_actions(self, user_type):
         """Método auxiliar para verificar que las acciones son correctas según el tipo de usuario"""
@@ -101,7 +106,8 @@ class EventBaseTest(BaseE2ETest):
 
         detail_button = row0.get_by_role("link", name="Ver Detalle")
         edit_button = row0.get_by_role("link", name="Editar")
-        delete_form = row0.locator("form")
+        cancel_form = row0.locator(f"#cancel-form-{self.event1.id}")
+        delete_form = row0.locator(f"#delete-form-{self.event1.id}")
 
         expect(detail_button).to_be_visible()
         expect(detail_button).to_have_attribute("href", f"/events/{self.event1.id}/")
@@ -110,14 +116,20 @@ class EventBaseTest(BaseE2ETest):
             expect(edit_button).to_be_visible()
             expect(edit_button).to_have_attribute("href", f"/events/{self.event1.id}/edit/")
 
+            expect(cancel_form).to_have_attribute("action", f"/events/{self.event1.id}/cancel/")
+            expect(cancel_form).to_have_attribute("method", "POST")
+            
             expect(delete_form).to_have_attribute("action", f"/events/{self.event1.id}/delete/")
             expect(delete_form).to_have_attribute("method", "POST")
 
             delete_button = delete_form.get_by_role("button", name="Eliminar")
+            cancel_button = cancel_form.get_by_role("button", name="Cancelar")
+            expect(cancel_button).to_be_visible()
             expect(delete_button).to_be_visible()
         else:
             expect(edit_button).to_have_count(0)
             expect(delete_form).to_have_count(0)
+            expect(cancel_form).to_have_count(0)
 
 
 class EventAuthenticationTest(EventBaseTest):
@@ -380,3 +392,22 @@ class EventHidePastEventsTest(EventBaseTest):
         # El evento futuro también debe seguir visible
         expect(self.page.get_by_text("Evento de prueba 1")).to_be_visible()
         expect(self.page.get_by_text("Evento de prueba 2")).to_be_visible()
+
+class EventActionDisabledByStatusTest(EventBaseTest):
+    """Tests para verificar que las acciones están deshabilitadas según el estado del evento"""
+
+    def test_cancel_event(self):
+        """Test que verifica que un evento activo puede ser cancelado"""
+        self.login_user("organizador", "password123")
+        self.page.goto(f"{self.live_server_url}/events/")
+
+        # Hacer clic en el botón cancelar del primer evento
+        cancel_form = self.page.locator(f"#cancel-form-{self.event1.id}")
+        expect(cancel_form).to_be_visible()
+        cancel_form.get_by_role("button", name="Cancelar").click()
+
+        # Verificar que redirigió a la página de eventos
+        expect(self.page).to_have_url(f"{self.live_server_url}/events/{self.event1.id}/")
+
+        # Verificar que el evento ahora está marcado como cancelado
+        expect(self.page.get_by_text("Cancelado")).to_be_visible()

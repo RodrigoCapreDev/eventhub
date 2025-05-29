@@ -77,19 +77,26 @@ class Category(models.Model):
         self.is_active = is_active
         self.save()
 
+class EventStatus(models.TextChoices):
+    ACTIVE='active', 'Activo'
+    SOLD_OUT='sold_out', 'Agotado'
+    RESCHEDULED='rescheduled', 'Reprogramado'
+    FINISHED='finished', 'Finalizado'
+    CANCELLED='cancelled', 'Cancelado'
 
 class Event(models.Model):
 
     title = models.CharField(max_length=200)
     description = models.TextField()
     scheduled_at = models.DateTimeField()
+    previous_date = models.DateTimeField(null=True, blank=True)
     organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organized_events")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     venue= models.ForeignKey('Venue', on_delete=models.SET_NULL, related_name='events', null=True, blank=True)
     categories = models.ManyToManyField(Category, blank=True)
     available_tickets = models.IntegerField(default=0)
-
+    status = models.CharField(max_length=15, choices=EventStatus.choices, default=EventStatus.ACTIVE)   
 
     def __str__(self):
         return self.title
@@ -127,6 +134,7 @@ class Event(models.Model):
             scheduled_at=scheduled_at,
             organizer=organizer,
             available_tickets=venue.capacity if venue else 0,
+            status=EventStatus.ACTIVE
         )
 
         return True, None
@@ -146,12 +154,43 @@ class Event(models.Model):
         self.venue = venue
         self.available_tickets = venue.capacity if venue else self.available_tickets
         self.description = description.strip()
-        self.scheduled_at = scheduled_at
+        if scheduled_at and scheduled_at != self.scheduled_at:
+            self.previous_date = self.scheduled_at
+            self.scheduled_at = scheduled_at
         self.organizer = organizer
         self.save()
-        return True, None
+        self.update_status()
+        return True ,None
+    
+    def update_status(self):
+        previous_status = self.status
+        if self.status == EventStatus.CANCELLED:
+            return 
+        if self.previous_date and self.previous_date != self.scheduled_at:
+            self.status = EventStatus.RESCHEDULED
+        if self.available_tickets == 0:
+            self.status = EventStatus.SOLD_OUT
+        if self.scheduled_at <= timezone.now():
+            self.status = EventStatus.FINISHED
+        if self.status == previous_status:
+            if self.previous_date and self.previous_date != self.scheduled_at:
+                self.status = EventStatus.RESCHEDULED
+            else:
+                self.status = EventStatus.ACTIVE
+        if self.status != previous_status:
+            self.save()
 
-
+        
+    
+    def get_status_css_class(self):
+        return {
+            str(EventStatus.ACTIVE): "badge bg-success",
+            str(EventStatus.CANCELLED): "badge bg-danger",
+            str(EventStatus.RESCHEDULED): "badge bg-warning",
+            str(EventStatus.SOLD_OUT): "badge bg-secondary",
+            str(EventStatus.FINISHED): "badge bg-dark",
+        }.get(self.status, "")
+    
 class Venue(models.Model):
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=200)
@@ -249,6 +288,9 @@ class Ticket(models.Model):
         if quantity is None or not isinstance(quantity, int) or quantity <= 0:
             errors["quantity"] = "La cantidad de tickets debe ser un número entero mayor a 0"
 
+        if event.status in [EventStatus.SOLD_OUT, EventStatus.FINISHED, EventStatus.CANCELLED]:
+            errors["status"] = "No se pueden comprar entradas para este evento"
+
         return errors
 
     @classmethod
@@ -259,6 +301,8 @@ class Ticket(models.Model):
         if event.available_tickets < quantity:
             return False, {"error": "No hay suficientes entradas disponibles"}
         event.available_tickets -= quantity
+        if event.available_tickets == 0:
+            event.status = EventStatus.SOLD_OUT
         event.save()
 
         ticket = Ticket.objects.create(
@@ -277,6 +321,8 @@ class Ticket(models.Model):
         self.event.available_tickets -= quantity - self.quantity
         if self.event.available_tickets < 0:
             return False, {"error": "No hay suficientes entradas disponibles"}
+        if self.event.available_tickets == 0:
+            self.event.status = EventStatus.SOLD_OUT
         self.event.save()
         if quantity is None or not isinstance(quantity, int) or quantity <= 0:
             return False, {"quantity": "La cantidad de tickets debe ser mayor a 0"}
@@ -296,12 +342,13 @@ class Ticket(models.Model):
     def delete(self, user_is_organizer):
         if user_is_organizer:
             self.event.available_tickets += self.quantity
+            self.event.update_status()
             self.event.save()
             super().delete()
             return True, None
         if not user_is_organizer and now() < self.buy_date + timedelta(minutes=30):
             self.event.available_tickets += self.quantity
-            self.event.save()
+            self.event.update_status()
             super().delete()
             return True, None
         else:

@@ -3,10 +3,11 @@ import datetime
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponseBadRequest
 from django.utils import timezone
 
-from .models import Category, Comment,Event, Rating, User, Venue, Notification, NotificationPriority, UserNotification, Ticket, TicketType, Favorite
+from .models import Category, Comment, Event, Rating, User, Venue, Notification, NotificationPriority, UserNotification, Ticket, TicketType, Favorite, EventStatus
 
 
 def register(request):
@@ -68,6 +69,7 @@ def events(request):
     venue_id = request.GET.get("venue")
     date = request.GET.get("date")
     show_past = request.GET.get("show_past") == "on"
+    show_past = request.GET.get("show_past") == "on"
 
     if category_id:
         events = events.filter(categories__id=category_id)
@@ -77,6 +79,11 @@ def events(request):
 
     if date:
         events = events.filter(scheduled_at__date=date)
+
+    now = timezone.now()
+    for event in events:
+        if event.scheduled_at < now:
+            event.update_status()              
 
     if not show_past:
         events = events.filter(scheduled_at__gte=timezone.now())
@@ -93,6 +100,7 @@ def events(request):
             "venues": venues,
             "user_is_organizer": request.user.is_organizer,
             "show_past": show_past,
+            "show_past": show_past,
         }
     )
 
@@ -102,6 +110,8 @@ def event_detail(request, id):
     user = request.user
     event = get_object_or_404(Event, pk=id)
     user_rating = Rating.objects.filter(user=request.user, event=event).first()
+
+    is_favorite = Favorite.objects.filter(user=request.user, event=event).exists()
 
     is_favorite = Favorite.objects.filter(user=request.user, event=event).exists()
 
@@ -120,6 +130,7 @@ def event_detail(request, id):
         "now": timezone.now(),
         "comments": comments,
         "is_favorite": is_favorite,
+        "is_favorite": is_favorite,
     })
 
 
@@ -136,6 +147,14 @@ def event_delete(request, id):
 
     return redirect("events")
 
+@login_required
+def event_cancel(request, id):
+    if not request.user.is_organizer:
+        return redirect("events")
+    event=get_object_or_404(Event, pk=id)
+    event.status = EventStatus.CANCELLED
+    event.save()
+    return redirect("event_detail", id)
 
 @login_required
 def event_form(request, id=None):
@@ -184,6 +203,7 @@ def event_form(request, id=None):
                 }
         else:
             event = get_object_or_404(Event, pk=id)
+            success, errors = event.update(title, venue, description, scheduled_at, request.user)
             success, errors = event.update(title, venue, description, scheduled_at, request.user)
             if success:
                 event.categories.set(selected_categories)
@@ -778,6 +798,28 @@ def comment_delete(request, comment_id):
         return redirect("event_detail", event_id)
 
     return redirect("event_detail", event_id)
+
+@login_required
+def toggle_favorite(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    favorite, created = Favorite.objects.get_or_create(user=request.user, event=event)
+
+    if not created:
+        favorite.delete()
+        is_favorite = False
+    else:
+        is_favorite = True
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'is_favorite': is_favorite})
+
+    return redirect('event_detail', id=event_id)
+
+@login_required
+def user_favorites(request):
+    favorites = Favorite.objects.filter(user=request.user).select_related('event')
+    return render(request, 'app/favorites.html', {'favorites': favorites})
+
 
 @login_required
 def toggle_favorite(request, event_id):

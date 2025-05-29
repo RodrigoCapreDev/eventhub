@@ -71,6 +71,7 @@
                 <th>Ubicación</th>
                 <th>Organizador</th>
                 <th>Categorías</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
         </thead>
@@ -91,7 +92,12 @@
                         {% else %}
                             <span class="text-muted">Sin categoría</span>
                         {% endif %}
-                    </td>                  
+                    </td>
+                    <td>
+                        <span class="badge {{ event.get_status_css_class }} fs-10">
+                            {{ event.get_status_display }}
+                        </span>
+                    </td>             
                     <td>
                         <div class="hstack gap-1">
                             <a href="{% url 'event_detail' event.id %}"
@@ -100,21 +106,38 @@
                                title="Ver detalle">
                                 <i class="bi bi-eye" aria-hidden="true"></i>
                             </a>
-                            {%if not user.is_organizer %}
-                                <a href="{% url 'ticket_form' event.id%}"
-                                class="btn btn-sm btn-outline-success"
-                                aria-label="Comprar Ticket"
-                                title="Comprar Ticket">
-                                    <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
-                                </a>
-                            {%else%}
+                            {% if not user.is_organizer %}
+                                {% if event.status == 'cancelled' or event.status == 'finished' or event.status == 'sold_out' %}
+                                    <button class="btn btn-sm btn-outline-secondary" title="No disponible" disabled>
+                                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                                    </button>
+                                {% else %}
+                                    <a href="{% url 'ticket_form' event.id %}"
+                                    class="btn btn-sm btn-outline-success"
+                                    aria-label="Comprar Ticket"
+                                    title="Comprar Ticket">
+                                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                                    </a>
+                                {% endif %}
+                            {% else %}
                                 <a href="{% url 'event_edit' event.id %}"
                                     class="btn btn-sm btn-outline-secondary"
                                     aria-label="Editar"
                                     title="Editar">
                                     <i class="bi bi-pencil" aria-hidden="true"></i>
                                 </a>
-                                <form action="{% url 'event_delete' event.id %}" method="POST">
+                                {% if event.status != 'cancelled' and event.status != 'finished' %}
+                                    <form id="cancel-form-{{ event.id }}" action="{% url 'event_cancel' event.id %}" method="POST" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button class="btn btn-sm btn-outline-danger"
+                                            title="Cancelar"
+                                            type="submit"
+                                            aria-label="Cancelar">
+                                            <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                <form id="delete-form-{{ event.id }}" action="{% url 'event_delete' event.id %}" method="POST">
                                     {% csrf_token %}
                                     <button class="btn btn-sm btn-outline-danger"
                                         title="Eliminar"
