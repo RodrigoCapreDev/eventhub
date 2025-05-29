@@ -20,6 +20,12 @@ class EventModelTest(TestCase):
             city="Ciudad de prueba",
             capacity=100,
         )
+        self.venue = Venue.objects.create(
+            name="Lugar de prueba", 
+            address="Dirección falsa 123",
+            city="Ciudad de prueba",
+            capacity=100,
+        )
 
     def test_event_creation(self):
         event = Event.objects.create(
@@ -47,12 +53,14 @@ class EventModelTest(TestCase):
         errors = Event.validate("", "Descripción válida", scheduled_at)
         self.assertIn("title", errors)
         self.assertEqual(errors["title"], "Por favor ingrese un título")
+        self.assertEqual(errors["title"], "Por favor ingrese un título")
 
     def test_event_validate_with_empty_description(self):
         """Test que verifica la validación de eventos con descripción vacía"""
         scheduled_at = timezone.now() + datetime.timedelta(days=1)
         errors = Event.validate("Título válido", "", scheduled_at)
         self.assertIn("description", errors)
+        self.assertEqual(errors["description"], "Por favor ingrese una descripción")
         self.assertEqual(errors["description"], "Por favor ingrese una descripción")
 
     def test_event_new_with_valid_data(self):
@@ -63,6 +71,7 @@ class EventModelTest(TestCase):
             description="Descripción del nuevo evento",
             scheduled_at=scheduled_at,
             organizer=self.organizer,
+            venue=self.venue,
             venue=self.venue,
         )
 
@@ -86,6 +95,7 @@ class EventModelTest(TestCase):
             scheduled_at=scheduled_at,
             organizer=self.organizer,
             venue=self.venue,
+            venue=self.venue,
         )
 
         self.assertFalse(success)
@@ -105,12 +115,19 @@ class EventModelTest(TestCase):
             city="Nueva ciudad de prueba",
             capacity=200,
         )
+        new_venue = Venue.objects.create(
+            name="Nuevo lugar de prueba",
+            address="Nueva dirección 456",
+            city="Nueva ciudad de prueba",
+            capacity=200,
+        )
 
         event = Event.objects.create(
             title="Evento de prueba",
             description="Descripción del evento de prueba",
             scheduled_at=timezone.now() + datetime.timedelta(days=1),
             organizer=self.organizer,
+            venue=self.venue,
             venue=self.venue,
         )
 
@@ -119,6 +136,7 @@ class EventModelTest(TestCase):
             description=new_description,
             scheduled_at=new_scheduled_at,
             organizer=self.organizer,
+            venue=new_venue,
             venue=new_venue,
         )
 
@@ -129,6 +147,7 @@ class EventModelTest(TestCase):
         self.assertEqual(updated_event.description, new_description)
         self.assertEqual(updated_event.scheduled_at.time(), new_scheduled_at.time())
         self.assertEqual(updated_event.venue, new_venue)
+        self.assertEqual(updated_event.venue, new_venue)
 
     def test_event_update_partial(self):
         """Test que verifica la actualización parcial de eventos"""
@@ -138,11 +157,13 @@ class EventModelTest(TestCase):
             scheduled_at=timezone.now() + datetime.timedelta(days=1),
             organizer=self.organizer,
             venue=self.venue,
+            venue=self.venue,
         )
 
         original_title = event.title
         original_scheduled_at = event.scheduled_at
         new_description = "Solo la descripción ha cambiado"
+        original_venue = event.venue
         original_venue = event.venue
 
         event.update(
@@ -150,6 +171,7 @@ class EventModelTest(TestCase):
             description=new_description,
             scheduled_at=None,  # No cambiar
             organizer=None,  # No cambiar
+            venue=None,  # No cambiar
             venue=None,  # No cambiar
         )
 

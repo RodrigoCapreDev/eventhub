@@ -5,6 +5,7 @@ from django.utils import timezone
 from playwright.sync_api import expect
 
 from app.models import Category, Event, User, Venue
+from app.models import Category, Event, User, Venue
 
 from app.test.test_e2e.base import BaseE2ETest
 
@@ -42,8 +43,20 @@ class EventBaseTest(BaseE2ETest):
             capacity=100,
         )
 
+        # Crear categoría de prueba
+        self.category = Category.objects.create(name="Categoría de prueba")
+
+        # Crear venue de prueba
+        self.venue = Venue.objects.create(
+            name="Lugar de prueba",
+            address="Calle Falsa 123",
+            city="Ciudad Test",
+            capacity=100,
+        )
+
         # Crear eventos de prueba
         # Evento 1
+        event_date1 = timezone.make_aware(datetime.datetime(2026, 2, 10, 10, 10))
         event_date1 = timezone.make_aware(datetime.datetime(2026, 2, 10, 10, 10))
         self.event1 = Event.objects.create(
             title="Evento de prueba 1",
@@ -51,10 +64,13 @@ class EventBaseTest(BaseE2ETest):
             scheduled_at=event_date1,
             organizer=self.organizer,
             venue=self.venue,
+            venue=self.venue,
         )
+        self.event1.categories.add(self.category)
         self.event1.categories.add(self.category)
 
         # Evento 2
+        event_date2 = timezone.make_aware(datetime.datetime(2026, 3, 15, 14, 30))
         event_date2 = timezone.make_aware(datetime.datetime(2026, 3, 15, 14, 30))
         self.event2 = Event.objects.create(
             title="Evento de prueba 2",
@@ -62,7 +78,9 @@ class EventBaseTest(BaseE2ETest):
             scheduled_at=event_date2,
             organizer=self.organizer,
             venue=self.venue,
+            venue=self.venue,
         )
+        self.event2.categories.add(self.category)
         self.event2.categories.add(self.category)
 
     def _table_has_event_info(self):
@@ -256,6 +274,8 @@ class EventCRUDTest(EventBaseTest):
         self.page.get_by_label("Descripción").fill("Descripción creada desde prueba E2E")
         self.page.get_by_label("Ubicación").select_option(str(self.venue.id))
         self.page.get_by_label("Fecha").fill("2026-06-15")
+        self.page.get_by_label("Ubicación").select_option(str(self.venue.id))
+        self.page.get_by_label("Fecha").fill("2026-06-15")
         self.page.get_by_label("Hora").fill("16:45")
 
         # Enviar el formulario
@@ -270,6 +290,10 @@ class EventCRUDTest(EventBaseTest):
 
         row = self.page.locator("table tbody tr").last
         expect(row.locator("td").nth(0)).to_have_text("Evento de prueba E2E")
+        expect(row.locator("td").nth(1)).to_have_text("15 jun 2026, 16:45")
+        expect(row.locator("td").nth(2)).to_have_text("Lugar de prueba")
+        expect(row.locator("td").nth(3)).to_have_text("organizador")
+
         expect(row.locator("td").nth(1)).to_have_text("15 jun 2026, 16:45")
         expect(row.locator("td").nth(2)).to_have_text("Lugar de prueba")
         expect(row.locator("td").nth(3)).to_have_text("organizador")
@@ -305,12 +329,15 @@ class EventCRUDTest(EventBaseTest):
         date = self.page.get_by_label("Fecha")
         expect(date).to_have_value("2026-02-10")
         date.fill("2026-04-20")
+        expect(date).to_have_value("2026-02-10")
+        date.fill("2026-04-20")
 
         time = self.page.get_by_label("Hora")
         expect(time).to_have_value("10:10")
         time.fill("03:00")
 
         # Enviar el formulario
+        self.page.get_by_role("button", name="Guardar Cambios").click()
         self.page.get_by_role("button", name="Guardar Cambios").click()
 
         # Verificar que redirigió a la página de eventos
@@ -319,6 +346,7 @@ class EventCRUDTest(EventBaseTest):
         # Verificar que el título del evento ha sido actualizado
         row = self.page.locator("table tbody tr").last
         expect(row.locator("td").nth(0)).to_have_text("Titulo editado")
+        expect(row.locator("td").nth(1)).to_have_text("20 abr 2026, 03:00")
         expect(row.locator("td").nth(1)).to_have_text("20 abr 2026, 03:00")
 
     def test_delete_event_organizer(self):
