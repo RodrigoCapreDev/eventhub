@@ -1,0 +1,45 @@
+# Bytecode y metainformación de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Archivos de entorno
+.env
+*.env
+
+# Archivos ocultos y de Git
+.git/
+.gitignore
+.dockerignore
+
+# Archivos de log
+*.log
+
+# Configuraciones locales de Django
+local_settings.py
+
+# Archivos de base de datos locales
+db.sqlite3
+db.sqlite3-journal
+
+# Archivos temporales o de sistema
+*.bak
+*.swp
+*.tmp
+*~
+
+# Documentación
+docs/
+*.md
+
+# Archivos de configuración de IDEs
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
