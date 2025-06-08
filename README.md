@@ -35,3 +35,15 @@ Aplicación web para venta de entradas utilizada en la cursada 2025 de Ingenier�
 ## Iniciar app
 
 `python manage.py runserver`
+
+## Convenciones de ramas (Branch Naming)
+
+Para mantener un orden claro en el repositorio, seguimos estas convenciones para nombrar las ramas, usando guion bajo `_` (**snake_case**) para separar palabras dentro del nombre, y slash `/` para separar el prefijo del nombre de la rama:
+
+| Prefijo    | Uso principal                                            | Ejemplo                     |
+|------------|---------------------------------------------------------|-----------------------------|
+| `feature/` | Nuevas funcionalidades o mejoras                         | `feature/agregar_login`     |
+| `fix/`     | Corrección de errores o bugs                             | `fix/arreglar_error_login`  |
+| `infra/`   | Cambios en infraestructura y configuraciones técnicas   | `infra/configurar_dockerfile`|
+| `refactor/`| Cambios en código para mejorar estructura o legibilidad sin agregar ni arreglar funcionalidad | `refactor/limpieza_codigo`  |
+| `docs/`    | Cambios o mejoras en la documentación                    | `docs/actualizar_readme`    |
