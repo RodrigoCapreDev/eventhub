@@ -585,7 +585,6 @@ def notifications(request):
         notifications = Notification.objects.filter(user=request.user).order_by("-created_at")
         user_notifications = UserNotification.objects.filter(user=request.user, notification__in=notifications)
         user_notifications_dict = {un.notification.id: un for un in user_notifications}
-        print(user_notifications_dict)
         return render(
             request,
             "app/notifications_user.html",
