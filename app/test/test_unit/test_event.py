@@ -186,12 +186,11 @@ class EventModelTest(TestCase):
             venue=self.venue,
         )
 
-        eventos_futuros = Event.objects.filter(scheduled_at__gte=timezone.now())
+        eventos_futuros = Event.upcoming()
+        titulos = list(eventos_futuros.values_list("title", flat=True))
 
-        # Verifico que solo esté el evento futuro
-        self.assertTrue(all(e.scheduled_at >= timezone.now() for e in eventos_futuros))
-        self.assertTrue(any(e.title == "Evento futuro" for e in eventos_futuros))
-        self.assertFalse(any(e.title == "Evento pasado" for e in eventos_futuros))
+        self.assertIn("Evento futuro", titulos)
+        self.assertNotIn("Evento pasado", titulos)
 
     def test_event_status_activo_por_defecto(self):
         """Test que verifica que los eventos nuevos son activos por defecto"""
