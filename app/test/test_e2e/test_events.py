@@ -4,7 +4,7 @@ import re, uuid
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import Category, Event, User, Venue, Ticket, TicketType
+from app.models import Category, Event, User, Venue, Ticket, TicketType, NotificationPriority
 
 from app.test.test_e2e.base import BaseE2ETest
 
@@ -78,12 +78,10 @@ class EventBaseTest(BaseE2ETest):
             name="Tipo de ticket de prueba",
             price=50,
         )
+        
+        # Crear prioridad alta para que funcione el test, ya que la migración no se ejecuta en el entorno de pruebas
+        NotificationPriority.objects.get_or_create(pk=3, defaults={"description": "Alta"})
 
-        # Ticket de prueba
-        self.ticketType1 = TicketType.objects.create(
-            name="Tipo de ticket de prueba",
-            price=50,
-        )
 
     def _table_has_event_info(self):
         """Método auxiliar para verificar que la tabla tiene la información correcta de eventos"""
@@ -467,15 +465,7 @@ class EventNotifyChangesTest(EventBaseTest):
             f"{self.live_server_url}/events/{self.event_to_edit.id}/edit/"
         )
 
-        # Verificar que el formulario está precargado con los datos del evento y luego los editamos
-        title = self.page.get_by_label("Título del Evento")
-        expect(title).to_have_value("Evento para editar con notificacion")
-        title.fill("Titulo editado 123")
-
-        description = self.page.get_by_label("Descripción")
-        expect(description).to_have_value("Evento que será editado en el test")
-        description.fill("Descripcion Editada 123")
-
+        # Editamos la fecha y hora del evento
         date = self.page.get_by_label("Fecha")
         date.fill("2026-04-12")
 

@@ -173,7 +173,7 @@ class Event(models.Model):
         users = User.objects.filter(tickets__event=self).distinct()
 
         for user in users:
-            # Aquí usás tu sistema de notificaciones personalizado
+            # Sistema de notificaciones personalizado
             notification = Notification.objects.create(
                 title=f"Actualización del evento: {self.title}",
                 message=(
@@ -184,7 +184,7 @@ class Event(models.Model):
                 event=self,
                 priority=NotificationPriority.objects.get(description='Alta')  # Asigna una prioridad por defecto
             )
-            notification.user.add(user)  # Esto dispara tu señal `m2m_changed`
+            notification.user.add(user)  # Esto dispara la señal `m2m_changed`
     
     def update_status(self):
         previous_status = self.status
