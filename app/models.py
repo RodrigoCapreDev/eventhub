@@ -215,6 +215,11 @@ class Event(models.Model):
             str(EventStatus.FINISHED): "badge bg-dark",
         }.get(self.status, "")
     
+    @classmethod
+    def upcoming(cls):
+        """Devuelve un queryset con los eventos futuros"""
+        return cls.objects.filter(scheduled_at__gte=timezone.now())
+    
 class Venue(models.Model):
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=200)

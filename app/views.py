@@ -86,7 +86,7 @@ def events(request):
             event.update_status()              
 
     if not show_past:
-        events = events.filter(scheduled_at__gte=timezone.now())
+        events = Event.upcoming().order_by("scheduled_at")
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
