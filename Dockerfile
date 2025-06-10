@@ -26,5 +26,5 @@ COPY . .
 # Exponemos el puerto
 EXPOSE 8000
 
-# Comando para aplicar las migraciones y después levantar el servidor (en producción usar gunicorn)
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Comando para aplicar las migraciones y luego iniciar el servidor con Gunicorn
+CMD ["sh", "-c", "python manage.py migrate && gunicorn eventhub.wsgi:application --bind 0.0.0.0:8000"]
