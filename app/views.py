@@ -86,7 +86,7 @@ def events(request):
             event.update_status()              
 
     if not show_past:
-        events = events.filter(scheduled_at__gte=timezone.now())
+        events = Event.upcoming().order_by("scheduled_at")
 
     categories = Category.objects.filter(is_active=True)
     venues = Venue.objects.all()
@@ -585,7 +585,6 @@ def notifications(request):
         notifications = Notification.objects.filter(user=request.user).order_by("-created_at")
         user_notifications = UserNotification.objects.filter(user=request.user, notification__in=notifications)
         user_notifications_dict = {un.notification.id: un for un in user_notifications}
-        print(user_notifications_dict)
         return render(
             request,
             "app/notifications_user.html",

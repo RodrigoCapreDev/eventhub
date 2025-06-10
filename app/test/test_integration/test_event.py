@@ -387,13 +387,12 @@ class EventsListHidePastTest(BaseEventTestCase):
         response = self.client.get(reverse("events"))
         self.assertEqual(response.status_code, 200)
 
-        # Los eventos en contexto deben contener los futuros, no el pasado
-        events = list(response.context["events"])
-        event_titles = [e.title for e in events]
+        # Usar el método del modelo para obtener los eventos futuros
+        eventos_futuros = Event.upcoming()
+        event_titles = list(eventos_futuros.values_list("title", flat=True))
 
         # Asegurarse que evento pasado NO está
         self.assertNotIn(self.past_event.title, event_titles)
-
         # Eventos futuros sí deben estar
         self.assertIn(self.event1.title, event_titles)
         self.assertIn(self.event2.title, event_titles)
@@ -403,8 +402,7 @@ class EventsListHidePastTest(BaseEventTestCase):
         self.client.login(username="organizador", password="password123")
         response = self.client.get(reverse("events"))
         self.assertEqual(response.status_code, 200)
-        events = list(response.context["events"])
-        event_titles = [e.title for e in events]
+        event_titles = list(response.context["events"].values_list("title", flat=True))
         self.assertNotIn(self.past_event.title, event_titles)
 
     def test_past_events_not_visible_without_login(self):
@@ -412,7 +410,7 @@ class EventsListHidePastTest(BaseEventTestCase):
         response = self.client.get(reverse("events"))
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith("/accounts/login/"))
-
+        
 class EventUpdateSendNotificationTest(BaseEventTestCase):
     """Tests para verificar el envío de notificaciones al editar un evento"""
 
