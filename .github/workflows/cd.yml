@@ -1,6 +1,9 @@
 name: Entrega Continua
 
 on:
+  push:
+    branches:
+      - infra/#19-configurar_cd
   release:
     types: [published]
   workflow_dispatch:  # <-- trigger manual para test, luego se puede eliminar
