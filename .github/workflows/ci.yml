@@ -24,3 +24,23 @@ jobs:
 
         - name: Run static test
           run: ruff check
+
+    build:
+      name: build app
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v4
+
+        - name: Set up python
+          uses: actions/setup-python@v5
+          with:
+              python-version: '3.10'
+              cache: 'pip'
+
+        - name: Install dependencies
+          run: pip install -r requirements.txt
+
+        - name: verify build
+          run: python manage.py check
