@@ -1,0 +1,36 @@
+name: Entrega Continua
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  entrega-continua:
+    name: Build y Deploy a DockerHub y Render
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Login en DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build imagen Docker
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:${{ github.ref_name }} .
+
+      - name: Push imagen a DockerHub
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:${{ github.ref_name }}
+
+      - name: Deploy en Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          curl -X POST "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
