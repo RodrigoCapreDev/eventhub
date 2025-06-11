@@ -1,10 +1,11 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.utils import timezone
-from django.utils.timezone import now
-from datetime import timedelta
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+from django.utils import timezone
+from django.utils.timezone import now
 
 
 class User(AbstractUser):

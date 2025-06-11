@@ -2,6 +2,7 @@
 
 from django.db import migrations
 
+
 def crear_prioridades(apps, schema_editor):
     NotificationPriority = apps.get_model('app', 'NotificationPriority')
     NotificationPriority.objects.update_or_create(pk=1, defaults={"description": "Baja"})

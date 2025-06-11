@@ -1,12 +1,11 @@
 import datetime
+import uuid
 
 from django.test import TestCase
 from django.utils import timezone
 
-from app.models import Event, User, Venue, EventStatus
+from app.models import Event, EventStatus, Notification, Ticket, User, Venue
 
-from app.models import Event, User, Venue, Notification, Ticket
-import uuid
 
 class EventModelTest(TestCase):
     def setUp(self):

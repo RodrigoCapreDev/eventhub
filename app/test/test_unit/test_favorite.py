@@ -1,7 +1,10 @@
 import datetime
+
 from django.test import TestCase
 from django.utils import timezone
-from app.models import Favorite, Event, User, Venue
+
+from app.models import Event, Favorite, User, Venue
+
 
 class FavoriteModelTest(TestCase):
     def setUp(self):

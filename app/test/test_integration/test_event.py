@@ -1,11 +1,11 @@
 import datetime
+import uuid
 
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from app.models import Category, Event, User, Venue, Notification, Ticket
-import uuid
+from app.models import Category, Event, Notification, Ticket, User, Venue
 
 
 class BaseEventTestCase(TestCase):
