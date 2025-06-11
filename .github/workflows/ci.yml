@@ -1,0 +1,92 @@
+name: ci
+
+on:
+    pull_request:
+        branch: [main]
+
+jobs:
+    lint:
+      name: lint
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v4
+
+        - name: Set up python
+          uses: actions/setup-python@v5
+          with:
+              python-version: '3.10'
+              cache: 'pip'
+
+        - name: Install dependencies
+          run: pip install -r requirements.txt
+
+        - name: Run static test
+          run: ruff check
+
+    build:
+      name: build app
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v4
+
+        - name: Set up python
+          uses: actions/setup-python@v5
+          with:
+              python-version: '3.10'
+              cache: 'pip'
+
+        - name: Install dependencies
+          run: pip install -r requirements.txt
+
+        - name: verify build
+          run: python manage.py check
+
+    tests:
+      name: run unit and integration tests
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v4
+
+        - name: Set up python
+          uses: actions/setup-python@v5
+          with:
+              python-version: '3.10'
+              cache: 'pip'
+
+        - name: Install dependencies
+          run: pip install -r requirements.txt
+
+        - name: Run unit tests
+          run: python manage.py test app.test.test_unit
+        
+        - name: Run integration tests
+          run: python manage.py test app.test.test_integration
+    
+    e2e:
+      name: run e2e tests
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v4
+
+        - name: Set up python
+          uses: actions/setup-python@v5
+          with:
+              python-version: '3.10'
+              cache: 'pip'
+
+        - name: Install dependencies
+          run: pip install -r requirements.txt
+
+        - name: Install playwright
+          run: python -m playwright install --with-deps chromium
+
+        - name: Run e2e tests
+          run: python manage.py test app.test.test_e2e
