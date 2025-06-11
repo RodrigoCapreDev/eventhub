@@ -3,6 +3,8 @@ name: Entrega Continua
 on:
   release:
     types: [published]
+  workflow_dispatch:  # <-- trigger manual para test, luego se puede eliminar
+
 
 jobs:
   deploy:
@@ -31,7 +33,16 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:latest,${{ secrets.DOCKERHUB_USERNAME }}/eventhub:${{ env.date }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:latest,${{ secrets.DOCKERHUB_USERNAME }}/eventhub:${
+            { github.event_name == 'workflow_dispatch' && 'test' || env.date }
+          }
 
-      - name: Deploy
-        run: curl ${{ secrets.RENDER_HOOK }}
+      - name: Deploy en Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          curl -X POST "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
