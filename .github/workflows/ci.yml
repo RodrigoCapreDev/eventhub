@@ -49,7 +49,7 @@ jobs:
       name: run unit and integration tests
       runs-on: ubuntu-latest
 
-      step:
+      steps:
         - name: Check out code
           uses: actions/checkout@v4
 
