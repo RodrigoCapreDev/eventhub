@@ -1,12 +1,10 @@
 import datetime
 
 from django.test import Client, TestCase
-from django.urls import reverse
 from django.utils import timezone
 
+from app.models import Category, Event, EventStatus, Ticket, TicketType, User, Venue
 
-from app.models import Category, Event, User, Venue, TicketType, Ticket, EventStatus
-import uuid
 
 class BaseTicketTestCase(TestCase):
     """Clase base con la configuración común para todos los tests de tickets."""

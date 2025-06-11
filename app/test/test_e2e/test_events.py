@@ -1,11 +1,11 @@
 import datetime
-import re, uuid
+import re
+import uuid
 
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import Category, Event, User, Venue, Ticket, TicketType, NotificationPriority
-
+from app.models import Category, Event, NotificationPriority, Ticket, TicketType, User, Venue
 from app.test.test_e2e.base import BaseE2ETest
 
 
