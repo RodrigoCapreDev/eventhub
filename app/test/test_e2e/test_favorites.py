@@ -1,10 +1,12 @@
-import re
 import datetime
+import re
+
 from django.utils import timezone
 from playwright.sync_api import expect
 
-from app.models import Event, User, Venue, Favorite
+from app.models import Event, User, Venue
 from app.test.test_e2e.base import BaseE2ETest
+
 
 class FavoritesE2ETest(BaseE2ETest):
 

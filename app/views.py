@@ -2,12 +2,25 @@ import datetime
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponseBadRequest
 from django.utils import timezone
 
-from .models import Category, Comment, Event, Rating, User, Venue, Notification, NotificationPriority, UserNotification, Ticket, TicketType, Favorite, EventStatus
+from .models import (
+    Category,
+    Comment,
+    Event,
+    EventStatus,
+    Favorite,
+    Notification,
+    NotificationPriority,
+    Rating,
+    Ticket,
+    TicketType,
+    User,
+    UserNotification,
+    Venue,
+)
 
 
 def register(request):
@@ -100,7 +113,6 @@ def events(request):
             "venues": venues,
             "user_is_organizer": request.user.is_organizer,
             "show_past": show_past,
-            "show_past": show_past,
         }
     )
 
@@ -129,7 +141,6 @@ def event_detail(request, id):
         "is_edit": user_rating is not None,
         "now": timezone.now(),
         "comments": comments,
-        "is_favorite": is_favorite,
         "is_favorite": is_favorite,
     })
 
@@ -464,7 +475,8 @@ def ticket_form(request, event_id=None):
                     "event": event,
                 },
             )
-    else: return render(request, "app/ticket_form.html", {"ticket_types":ticket_types, "event":event})
+    else: 
+        return render(request, "app/ticket_form.html", {"ticket_types":ticket_types, "event":event})
 
 @login_required
 def ticket_detail(request, id):
@@ -541,7 +553,8 @@ def ticket_type_form(request):
                     "data": request.POST,
                 },
             )
-    else: return render(request, "app/ticket_type_form.html")
+    else: 
+        return render(request, "app/ticket_type_form.html")
 
 @login_required
 def ticket_type_update(request, id):
@@ -565,7 +578,8 @@ def ticket_type_update(request, id):
                     "ticket_type": ticket_type,
                 },
             )
-    else: return render(request, "app/ticket_type_update.html", {"ticket_type": ticket_type})
+    else: 
+        return render(request, "app/ticket_type_update.html", {"ticket_type": ticket_type})
 
 
 
@@ -735,13 +749,6 @@ def comment_create(request, event_id):
                 "user_is_organizer": request.user.is_organizer,
             })
 
-        comment = Comment.objects.create(
-            title=title,
-            text=text,
-            user=request.user,
-            event=event
-        )
-
         return redirect("event_detail", event_id)
 
     return redirect("event_detail", event_id)
@@ -796,28 +803,6 @@ def comment_delete(request, comment_id):
         return redirect("event_detail", event_id)
 
     return redirect("event_detail", event_id)
-
-@login_required
-def toggle_favorite(request, event_id):
-    event = get_object_or_404(Event, id=event_id)
-    favorite, created = Favorite.objects.get_or_create(user=request.user, event=event)
-
-    if not created:
-        favorite.delete()
-        is_favorite = False
-    else:
-        is_favorite = True
-
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'is_favorite': is_favorite})
-
-    return redirect('event_detail', id=event_id)
-
-@login_required
-def user_favorites(request):
-    favorites = Favorite.objects.filter(user=request.user).select_related('event')
-    return render(request, 'app/favorites.html', {'favorites': favorites})
-
 
 @login_required
 def toggle_favorite(request, event_id):
