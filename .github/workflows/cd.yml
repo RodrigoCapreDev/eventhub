@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - fix/implementar_render_hook
 
 jobs:
   deploy:
