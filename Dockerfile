@@ -23,6 +23,9 @@ RUN apt-get update \
 # Copiamos el resto del proyecto
 COPY . .
 
+# Recolectamos los archivos estáticos
+RUN python manage.py collectstatic --noinput
+
 # Exponemos el puerto
 EXPOSE 8000
 
