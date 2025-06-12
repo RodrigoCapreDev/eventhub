@@ -3,8 +3,9 @@ name: Entrega Continua
 on:
   release:
     types: [published]
-  workflow_dispatch:  # <-- trigger manual para test, luego se puede eliminar
-
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -32,7 +33,6 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: echo "IMAGE_TAG=$(date '+%Y%m%d%H%M%S')" >> $GITHUB_ENV
 
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -40,7 +40,6 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:latest,${{ secrets.DOCKERHUB_USERNAME }}/eventhub:${{ env.IMAGE_TAG }}
-
 
       - name: Deploy en Render
         env:
